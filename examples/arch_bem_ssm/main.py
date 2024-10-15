@@ -11,7 +11,7 @@ from pyhbm import *
 
 archbeam = ArchBeamSSM(P=1)  # Create an instance of Duffing
 
-harmonics =  2*np.arange(3)+1 # hstack((2*np.arange(20)+1, 40)) # 2*np.arange(4)+1
+harmonics =  [1,3,5]
 
 archbeam_solver = HarmonicBalanceMethod(
     first_order_ode = archbeam, 

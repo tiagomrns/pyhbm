@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../s
 from pyhbm import *
 #%%
 
-archbeam = ArchBeamSSM(P=1)  # Create an instance of Duffing
+archbeam = ArchBeamSSM(P=1)  # Create an instance of ArchBeam
 
 harmonics =  [1,3,5]
 

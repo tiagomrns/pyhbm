@@ -65,36 +65,3 @@ from matplotlib import pyplot as plt
 solution_set.plot_FRF(degree_of_freedom=1, harmonic=1, reference_omega=archbeam.k)
 results_path = "./examples/arch_bem_ssm/timed_results/new.out"
 solution_set.save(results_path)
-
-
-
-
-
-
-#%%
-
-from numpy import array
-import pickle
-from matplotlib import pyplot as plt
-
-with open("./timed_results/new.out", 'rb') as handle:
-	solution_set = pickle.load(handle)
-
-reference_omega = 1.033
-
-omega = array(solution_set["omega"])
-harmonic_amplitude = array(solution_set["harmonic_amplitude"])[:,0,0]
-
-with open("./timed_results/minimal_FRF.out", 'wb') as handle:
-	pickle.dump({"omega": omega, "harmonic_amplitude": harmonic_amplitude}, handle)
-
-if reference_omega is None:
-	plt.plot(omega, harmonic_amplitude)
-	plt.xlabel(r"$\omega$")
-else:
-	omega /= reference_omega
-	plt.plot(omega, harmonic_amplitude)
-	plt.xlabel(r"$\omega/\omega_0$")
-plt.ylabel(r"$\max{|Q_{%d, %d}}|$" % (1, 1))
-plt.show()
-# %%

@@ -35,17 +35,16 @@ class SolutionSet(object):
 	def __len__(self):
 		return len(self.solution)
 
-	def plot_FRF(self, degree_of_freedom, harmonic, reference_omega=None):
-		index = list(Fourier.harmonics).index(harmonic)
-		harmonic_amplitude = abs(array([fourier.coefficients for fourier in self.fourier])[:, index, degree_of_freedom, 0])*2/Fourier.number_of_time_samples
-		# amplitude = []
-		# for fourier in self.fourier:
-		# 	shape = list(fourier.coefficients.shape)
-		# 	shape[0] = Fourier.harmonic_truncation_order + 1
-		# 	new_coeff = np.zeros(shape, dtype = complex)
-		# 	new_coeff[Fourier.harmonics] = fourier.coefficients
-		# 	time_series = irfft(new_coeff[:, degree_of_freedom, 0], axis=0, n=160)
-		# 	amplitude.append(np.max(np.abs(time_series)))
+	def plot_FRF(self, degree_of_freedom, harmonic=None, reference_omega=None, yscale='linear', xscale='linear'):
+
+		if harmonic is None:
+			# compute l2 norm of the Fourier coefficients
+			harmonic_amplitude = norm(array([fourier.coefficients for fourier in self.fourier])[:, :, degree_of_freedom, 0], axis=1)*2/Fourier.number_of_time_samples
+			plt.ylabel(r"$||\mathbf{Q}||_{DoF=%d}$" % (degree_of_freedom))
+		else:
+			index = list(Fourier.harmonics).index(harmonic) # index in the list of harmonics of the value of the harmonic
+			harmonic_amplitude = abs(array([fourier.coefficients for fourier in self.fourier])[:, index, degree_of_freedom, 0])*2/Fourier.number_of_time_samples
+			plt.ylabel(r"$|Q_{%d, %d}|$" % (harmonic, degree_of_freedom))
 
 		if reference_omega is None:
 			plt.plot(self.omega, harmonic_amplitude)
@@ -54,7 +53,13 @@ class SolutionSet(object):
 			omega = array(self.omega)/reference_omega
 			plt.plot(omega, harmonic_amplitude)
 			plt.xlabel(r"$\omega/\omega_0$")
-		plt.ylabel(r"$\max{|Q_{%d, %d}}|$" % (harmonic, degree_of_freedom))
+		
+		if yscale == 'log':
+			plt.yscale('log')
+
+		if xscale == 'log':
+			plt.xscale('log')
+
 		plt.show()
 
 	def save(self, path):

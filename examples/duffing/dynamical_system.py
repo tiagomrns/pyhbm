@@ -5,7 +5,7 @@ from numpy import cos, sin, array, concatenate
 
 #%%
 class Duffing:
-  def __init__(self, c=0.1, k=1.0, beta=0.0, P=0.2):
+  def __init__(self, c=0.1, k=1.0, beta=0.1, P=0.2):
     """
     Initializes the Duffing oscillator parameters.
 
@@ -55,7 +55,7 @@ class Duffing:
     """
     x = state[..., 0:1, :]  # Select first element along the second-to-last axis
     zeros = np.zeros_like(x)
-    fnl = -self.beta * np.power(x, 3) * array(cos(adimensional_time))[...,np.newaxis,np.newaxis]
+    fnl = -self.beta * np.power(x, 3) #* array(cos(adimensional_time))[...,np.newaxis,np.newaxis]
     return concatenate((zeros, fnl), axis=-2)
 
   def all_terms(self, state: np.ndarray, adimensional_time: np.ndarray) -> np.ndarray:
@@ -79,7 +79,7 @@ class Duffing:
     """
     x = state[..., 0:1, :]  # Select first element along the second-to-last axis
     zeros = np.zeros_like(x)
-    dfnldx = -3 * self.beta * np.power(x, 2) * array(cos(adimensional_time))[...,np.newaxis,np.newaxis]  # Correct coefficient for cubic nonlinearity
+    dfnldx = -3 * self.beta * np.power(x, 2) #* array(cos(adimensional_time))[...,np.newaxis,np.newaxis]  # Correct coefficient for cubic nonlinearity
     jacobian1 = np.concatenate((zeros, zeros), axis=-1)
     jacobian2 = np.concatenate((dfnldx, zeros), axis=-1)
     return concatenate((jacobian1, jacobian2), axis=-2)
@@ -106,13 +106,15 @@ print("nonlinear term ", duffing.nonlinear_term(state, tau).shape, " = \n", duff
 
 # Test with vectorized state
 number_of_time_samples = 16
-state_vectorized = np.hstack((np.arange(number_of_time_samples).reshape(number_of_time_samples, 1, 1)*0+2, 
+state_vectorized = np.hstack((np.arange(number_of_time_samples).reshape(number_of_time_samples, 1, 1), 
                               np.zeros((number_of_time_samples,)).reshape(number_of_time_samples, 1, 1))) # some sequence of states
 
 tau_vectorized = np.linspace(0, 2*np.pi, number_of_time_samples, endpoint=False)
 
-#print("sequence of states", state_vectorized.shape)
-print("sequence of nonlinear terms", duffing.nonlinear_term(state_vectorized, tau_vectorized).shape)
+print("sequence of states", state_vectorized.shape, "\n", state_vectorized)
+print("sequence of nonlinear terms", duffing.nonlinear_term(state_vectorized, tau_vectorized).shape, "\n", 
+      np.round(duffing.nonlinear_term(state_vectorized, tau_vectorized),9))
 #print("sequence of external terms", duffing.external_term(tau_vectorized).shape)
 print("sequence of jacobians of the nonlinear terms", duffing.jacobian_nonlinear_term(state_vectorized, tau_vectorized).shape, "\n", 
       np.round(duffing.jacobian_nonlinear_term(state_vectorized, tau_vectorized),9))"""
+# %%

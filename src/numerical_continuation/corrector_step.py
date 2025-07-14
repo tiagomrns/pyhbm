@@ -6,10 +6,10 @@ class NewtonRaphson(object):
 	def __init__(self, func, jacobian, maximum_iterations: int, absolute_tolerance: float):
 		self.compute_residue = func  # Function to compute residue
 		self.compute_jacobian = jacobian  # Function to compute Jacobian
-		self.maximum_iterations = maximum_iterations
-		self.absolute_tolerance = absolute_tolerance
+		self.maximum_iterations: int = maximum_iterations
+		self.absolute_tolerance: float = absolute_tolerance
 
-	def convergence_check(self):
+	def convergence_check(self) -> bool:
 		# Check for convergence based on the absolute tolerance
 		return norm(self.residue) < self.absolute_tolerance
 
@@ -27,7 +27,7 @@ class NewtonRaphson(object):
 		# output jacobian only when iteration > 1 also
 
 	def solve(self, initial_guess, return_jacobian: bool = False):
-		self.x = initial_guess
+		self.x = initial_guess # E.g. FourierOmegaPoint or np.ndarray
 		for iteration in range(self.maximum_iterations):
 			self.residue = self.compute_residue(self.x)
 			if self.convergence_check():

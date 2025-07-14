@@ -62,7 +62,7 @@ class SolutionSet(object):
 
 		plt.show()
 
-	def save(self, path):
+	def save(self, path: str):
 		
 		harmonic_amplitude = abs(array([fourier.coefficients[..., 0] for fourier in self.fourier]))*2/Fourier.number_of_time_samples
 		
@@ -73,16 +73,16 @@ class SolutionSet(object):
 			"iterations": self.iterations.copy(),
 			"step_length": self.step_length.copy()
 		}
+  
 		with open(path, 'wb') as handle:
 			pickle.dump(solution_set, handle)
-
 
 class HarmonicBalanceMethod:
 	def __init__(self, first_order_ode, 
 				harmonics: np.ndarray, 
 				corrector_solver=NewtonRaphson, 
 				corrector_parameterization: CorrectorParameterization = OrthogonalParameterization, 
-				predictor: Predictor = TangentPredictor, 
+				predictor: Predictor = TangentPredictorOne, 
 				step_length_adaptation: StepLengthAdaptation = ExponentialAdaptation):
      
 		# Update dependencies related to harmonics and polynomial degree
@@ -95,6 +95,7 @@ class HarmonicBalanceMethod:
 		self.solver = corrector_solver
 		self.corrector_parameterization = corrector_parameterization
 		self.predictor = predictor
+  
 		self.step_length_adaptation = step_length_adaptation
 
 		# Reference force level (used for tolerance calculation)
@@ -133,7 +134,7 @@ class HarmonicBalanceMethod:
 		Compute the extended residue, including parameterization.
 		"""
 		residue = self.freq_domain_ode.compute_residue_RI(x)
-		parameterization = self.parameterization.compute_parameterization(FourierOmegaPoint.to_RI_omega(x))
+		parameterization = self.parameterization.compute_parameterization(x.to_RI_omega())
 		return vstack((residue, parameterization))
 
 	def extended_jacobian(self, x: FourierOmegaPoint):
@@ -142,24 +143,26 @@ class HarmonicBalanceMethod:
 		"""
 		jacobian = self.freq_domain_ode.compute_jacobian_of_residue_RI(x)
 		derivative_omega = self.freq_domain_ode.compute_derivative_wrt_omega_RI(x.fourier)
-		parameterization = self.parameterization.compute_jacobian_parameterization(FourierOmegaPoint.to_RI_omega(x))
+		parameterization = self.parameterization.compute_jacobian_parameterization(x.to_RI_omega())
 		return vstack((hstack((jacobian, derivative_omega)), parameterization))
 
 	def solve_and_continue(
 		self, 
 		initial_guess: FourierOmegaPoint, 
-		initial_reference_direction, 
+		initial_reference_direction: FourierOmegaPoint | np.ndarray, 
 		maximum_number_of_solutions, 
 		omega_range, 
 		solver_kwargs: dict, 
-		step_length_adaptation_kwargs: dict
-	):
+		step_length_adaptation_kwargs: dict,
+		predictor_kwargs: dict = {}
+	) -> SolutionSet:
 
 		# Sort the omega range for continuation
 		omega_range.sort()
 
 		# Set up the solver for extended system (residue + parameterization)
 		solver_kwargs["absolute_tolerance"] *= np.sqrt(2) / Fourier.number_of_time_samples
+  
 		solver = self.solver(
 			func = self.extended_residue, 
 			jacobian = self.extended_jacobian, 
@@ -170,6 +173,7 @@ class HarmonicBalanceMethod:
 		step_length_adaptation = self.step_length_adaptation(**step_length_adaptation_kwargs)
 
 		# Solve the first system for a fixed frequency
+		# FourierOmegaPoint, int, bool, np.ndarray
 		solution, iterations, success, jacobian = self.solve_fixed_frequency(initial_guess, **solver_kwargs)
 		solution_set = SolutionSet(solution, iterations, step_length_adaptation.step_length)
 
@@ -178,30 +182,37 @@ class HarmonicBalanceMethod:
 			return solution_set
 
 		# Initialize predictor vector and loop through solutions
-		reference_predictor_vector = FourierOmegaPoint.to_RI_omega(initial_reference_direction)
+		reference_direction = FourierOmegaPoint.to_RI_omega_static(initial_reference_direction)
   
-		print("progress {:.3f} %".format(100*(solution.omega-omega_range[0])/(omega_range[-1]-omega_range[0])), "    iterations", iterations, end="\r")
+		# print("progress {:.3f} %".format(100*(solution.omega-omega_range[0])/(omega_range[-1]-omega_range[0])), "    iterations", iterations, end="\r")
 
 		for _ in range(maximum_number_of_solutions):
 			
-			previous_solution = solution
+			previous_solution: FourierOmegaPoint = solution
       
 			# Predict the next solution using the predictor
-			predictor_vector = self.predictor.compute_predictor_vector(
-				step_length = step_length_adaptation.step_length, 
-				jacobian = jacobian[:self.freq_domain_ode.real_dimension], 
-				reference_predictor_vector = reference_predictor_vector
-			)
+   
+			if self.predictor.autonomous: # remove the phase_shift_direction: np.ndarray
+				phase_shift_direction = previous_solution.adimensional_time_derivative_RI()
+				predictor_kwargs["remove_direction"] = phase_shift_direction / norm(phase_shift_direction)
+   
+			predictor_vector: np.ndarray = self.predictor.compute_predictor_vector(
+       			step_length = step_length_adaptation.step_length,
+				jacobian = jacobian[:self.freq_domain_ode.real_dimension],
+				reference_direction = reference_direction,
+				**predictor_kwargs
+         	)
 			
-			predicted_solution = solution + predictor_vector
-			
+			predicted_solution: FourierOmegaPoint = previous_solution + predictor_vector
+   
 			# Set up corrector parameterization
 			self.parameterization = self.corrector_parameterization(
 				predictor_vector = predictor_vector, 
-				predicted_solution = FourierOmegaPoint.to_RI_omega(predicted_solution)
+				predicted_solution = FourierOmegaPoint.to_RI_omega_static(predicted_solution)
 			)
 
 			# Solve the extended system (corrector step)
+   			# FourierOmegaPoint, int, bool, np.ndarray
 			solution, iterations, success, jacobian = solver.solve(predicted_solution, return_jacobian=True)
 			solution_set.append(solution, iterations, step_length_adaptation.step_length)
 
@@ -220,7 +231,7 @@ class HarmonicBalanceMethod:
 				return solution_set
 
 			# Update the reference predictor vector for the next continuation step
-			reference_predictor_vector = FourierOmegaPoint.to_RI_omega(solution - previous_solution)
+			reference_direction = FourierOmegaPoint.to_RI_omega_static(solution - previous_solution)
 
 		print("\nTerminate: maximum number of points reached")
 		return solution_set

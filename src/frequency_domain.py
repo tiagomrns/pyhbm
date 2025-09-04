@@ -1,6 +1,5 @@
 import numpy as np
-from numpy import array, concatenate, unique, hstack, array_split, vstack, einsum, pi, linspace, zeros, eye, kron, diag, where, block
-from numpy.linalg import norm
+from numpy import array, concatenate, unique, hstack, array_split, vstack, einsum, pi, linspace, zeros, eye, kron, diag, where, block, zeros_like
 from numpy.fft import rfft, irfft, fft
 
 
@@ -29,7 +28,8 @@ class Fourier(object):
         """
         Creates a Fourier instance from a set of Fourier coefficients
         """
-        assert coefficients.shape[0] == Fourier.number_of_harmonics, f"len(coefficients) = {len(coefficients)}"
+        assert coefficients.shape[0] == Fourier.number_of_harmonics, \
+            f"Number of harmonics is {Fourier.number_of_harmonics}, but {len(coefficients)} coefficients were provided."
 
         self.coefficients = coefficients
         # self.real_part = coefficients.real
@@ -79,8 +79,18 @@ class Fourier(object):
         complex_dimension = len(RI) // 2
         fourier_C = RI[:complex_dimension] + 1j*RI[complex_dimension:]
         return Fourier(array(array_split(fourier_C, Fourier.number_of_harmonics)))
-
-
+    
+    @staticmethod
+    def zeros(dimension: int):
+        return Fourier(zeros((Fourier.number_of_harmonics, dimension, 1), dtype=complex))
+    
+    @staticmethod
+    def new_from_first_harmonic(first_harmonic: array):
+        assert 1 in Fourier.harmonics, "Harmonic 1 is not in the provided list of harmonics"
+        z1 = first_harmonic * 0.5 * Fourier.number_of_time_samples
+        zz = zeros_like(z1)
+        zz_fill = [zz if h !=1 else z1 for h in Fourier.harmonics]
+        return Fourier(array(zz_fill))
 #%%
 
 class FourierOmegaPoint(object):
@@ -130,6 +140,12 @@ class FourierOmegaPoint(object):
     def adimensional_time_derivative_RI(self) -> array:
         adimensional_time_derivative = self.fourier.adimensional_time_derivative()
         return vstack((adimensional_time_derivative.to_RI(), 0.0))
+    
+    def zero_amplitude(dimension: int, omega: float):
+        return FourierOmegaPoint(Fourier.zeros(dimension), omega)
+    
+    def new_from_first_harmonic(first_harmonic: array, omega: float):
+        return FourierOmegaPoint(Fourier.new_from_first_harmonic(first_harmonic), omega)
 
 #%%
 
@@ -256,7 +272,6 @@ class FrequencyDomainFirstOrderODE(object):
         R = vstack(derivative_wrt_omega.real)
         I = vstack(derivative_wrt_omega.imag)
         return vstack((R, I))
-
 
 # Test
 

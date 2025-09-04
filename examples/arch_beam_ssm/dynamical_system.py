@@ -36,20 +36,16 @@ class ArchBeamSSM(DynamicalSystem):
     """
     self.P = P
 
-    self.k = 1.03308419e+00
+    self.omega0 = 1.03308419e+00
     self.c = 1.03308471e-03
 
     self.linear_coefficient = array(
-       [[-self.c, self.k],
-        [-self.k, -self.c]]
+       [[-self.c, self.omega0],
+        [-self.omega0, -self.c]]
     )
     
     self.dimension = self.linear_coefficient.shape[0] # 1 dimensional in second order and 2 dimensional in first order
     self.polynomial_degree = 7
-
-    self.reference_force = P
-    self.reference_length = P/self.k
-    self.reference_energy = self.reference_force * self.reference_length
 
   def external_term(self, adimensional_time: np.ndarray) -> np.ndarray:
     """

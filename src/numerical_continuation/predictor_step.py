@@ -13,6 +13,7 @@ class TangentPredictorRobust(Predictor):
     The dimension of the kernel is verified
     It is not the fastest if the dimension of the kernel is known apriori
     """
+    autonomous = True
     @staticmethod
     def compute_predictor_vector(step_length: float, 
                                  jacobian: np.ndarray, 
@@ -99,6 +100,10 @@ class TangentPredictorTwo(Predictor):
                                  reference_direction: np.ndarray, 
                                  remove_direction: np.ndarray,
                                  rcond: float = None) -> np.ndarray:
+        """
+        rcond : float, optional
+            -> Relative condition number. Singular values s smaller than rcond * max(s) are considered zero. Default: floating point eps * max(M,N).
+        """
         
         predictor_vector: np.ndarray = null_space(jacobian, rcond=rcond)
         dimension_of_kernel: int = predictor_vector.shape[1]
@@ -122,17 +127,19 @@ class StepLengthAdaptation(object):
         pass
 
 class ExponentialAdaptation(StepLengthAdaptation):
-    def __init__(self, base, user_step_length, max_step_length, min_step_length, goal_number_of_iterations):
+    def __init__(self, base, maximum_step_length, minimum_step_length, goal_number_of_iterations, initial_step_length=None):
 
         assert base > 1, "base must be greater than 1"
         self.base = base
 
-        self.user_step_length = user_step_length
-        self.max_step_length = max_step_length
-        self.min_step_length = min_step_length
+        self.max_step_length = maximum_step_length
+        self.min_step_length = minimum_step_length
         self.goal_number_of_iterations = goal_number_of_iterations
         
-        self.step_length = user_step_length
+        if initial_step_length is None:
+            self.step_length = maximum_step_length
+        else:
+            self.step_length = initial_step_length
 
     def update_step_length(self, iterations):
         new_step_length = self.step_length * (self.base**(self.goal_number_of_iterations - iterations))

@@ -1,10 +1,10 @@
 #%%
 import numpy as np
-from numpy import cos, sin, array, concatenate, unique, block, vstack, hstack, array_split
-from numpy.fft import rfft, irfft, fft
-from numpy.linalg import norm, solve
+from numpy import array, vstack, hstack
+from numpy.linalg import norm
 from matplotlib import pyplot as plt
 import pickle
+from time import time as current_time
 
 from numerical_continuation.corrector_step import *
 from numerical_continuation.predictor_step import *
@@ -35,16 +35,17 @@ class SolutionSet(object):
 	def __len__(self):
 		return len(self.solution)
 
-	def plot_FRF(self, degree_of_freedom, harmonic=None, reference_omega=None, yscale='linear', xscale='linear'):
-
-		if harmonic is None:
-			# compute l2 norm of the Fourier coefficients
-			harmonic_amplitude = norm(array([fourier.coefficients for fourier in self.fourier])[:, :, degree_of_freedom, 0], axis=1)*2/Fourier.number_of_time_samples
-			plt.ylabel(r"$||\mathbf{Q}||_{DoF=%d}$" % (degree_of_freedom))
-		else:
-			index = list(Fourier.harmonics).index(harmonic) # index in the list of harmonics of the value of the harmonic
-			harmonic_amplitude = abs(array([fourier.coefficients for fourier in self.fourier])[:, index, degree_of_freedom, 0])*2/Fourier.number_of_time_samples
-			plt.ylabel(r"$|Q_{%d, %d}|$" % (harmonic, degree_of_freedom))
+	def plot_FRF(self, degrees_of_freedom:list, harmonic:int = None, reference_omega:float =None, yscale='linear', xscale='linear'):
+     
+		for dof in array([degrees_of_freedom]).ravel():
+			if harmonic is None:
+				# compute l2 norm of the Fourier coefficients
+				harmonic_amplitude = norm(array([fourier.coefficients for fourier in self.fourier])[:, :, dof, 0], axis=1)*2/Fourier.number_of_time_samples
+				plt.ylabel(r"$||\mathbf{Q}||_{DoF=%d}$" % (dof))
+			else:
+				index = list(Fourier.harmonics).index(harmonic) # index in the list of harmonics of the value of the harmonic
+				harmonic_amplitude = abs(array([fourier.coefficients for fourier in self.fourier])[:, index, dof, 0])*2/Fourier.number_of_time_samples
+				plt.ylabel(r"$|Q_{%d, %d}|$" % (harmonic, dof))
 
 		if reference_omega is None:
 			plt.plot(self.omega, harmonic_amplitude)
@@ -68,7 +69,9 @@ class SolutionSet(object):
 		
 		solution_set = {
 			"harmonic_amplitude": harmonic_amplitude,
-			"fourier": self.fourier.copy(),
+			"fourier_coefficients": array([fourier.coefficients.copy() for fourier in self.fourier]),
+   			"time_series": array([fourier.time_series.copy() for fourier in self.fourier]),
+      		"adimensional_time_samples": Fourier.adimensional_time_samples,
 			"omega": self.omega.copy(),
 			"iterations": self.iterations.copy(),
 			"step_length": self.step_length.copy()
@@ -80,7 +83,7 @@ class SolutionSet(object):
 class HarmonicBalanceMethod:
 	def __init__(self, first_order_ode, 
 				harmonics: np.ndarray, 
-				corrector_solver=NewtonRaphson, 
+				corrector_solver = NewtonRaphson, 
 				corrector_parameterization: CorrectorParameterization = OrthogonalParameterization, 
 				predictor: Predictor = TangentPredictorOne, 
 				step_length_adaptation: StepLengthAdaptation = ExponentialAdaptation):
@@ -148,17 +151,19 @@ class HarmonicBalanceMethod:
 
 	def solve_and_continue(
 		self, 
-		initial_guess: FourierOmegaPoint, 
-		initial_reference_direction: FourierOmegaPoint | np.ndarray, 
 		maximum_number_of_solutions, 
-		omega_range, 
+		angular_frequency_range, 
 		solver_kwargs: dict, 
 		step_length_adaptation_kwargs: dict,
-		predictor_kwargs: dict = {}
+		predictor_kwargs: dict = {},
+  		initial_guess: FourierOmegaPoint = None, 
+		initial_reference_direction: FourierOmegaPoint = None, 
 	) -> SolutionSet:
 
+		t0 = current_time()
+
 		# Sort the omega range for continuation
-		omega_range.sort()
+		angular_frequency_range.sort()
 
 		# Set up the solver for extended system (residue + parameterization)
 		solver_kwargs["absolute_tolerance"] *= np.sqrt(2) / Fourier.number_of_time_samples
@@ -171,6 +176,16 @@ class HarmonicBalanceMethod:
 
 		# Initialize step length adaptation
 		step_length_adaptation = self.step_length_adaptation(**step_length_adaptation_kwargs)
+  
+		# Initialize the initial guess if not provided
+		if initial_guess is None:
+			initial_guess = self.zero_initialization(omega=angular_frequency_range[0])
+		
+  		# Initialize predictor vector
+		if initial_reference_direction is not None:
+			reference_direction = FourierOmegaPoint.to_RI_omega_static(initial_reference_direction)
+		else: 
+			reference_direction = self.zero_initialization(omega=1.0).to_RI_omega()
 
 		# Solve the first system for a fixed frequency
 		# FourierOmegaPoint, int, bool, np.ndarray
@@ -181,8 +196,7 @@ class HarmonicBalanceMethod:
 			print("\nTerminate: solver failure at initial solution")
 			return solution_set
 
-		# Initialize predictor vector and loop through solutions
-		reference_direction = FourierOmegaPoint.to_RI_omega_static(initial_reference_direction)
+		
   
 		# print("progress {:.3f} %".format(100*(solution.omega-omega_range[0])/(omega_range[-1]-omega_range[0])), "    iterations", iterations, end="\r")
 
@@ -220,22 +234,185 @@ class HarmonicBalanceMethod:
 				print("\nTerminate: solver failure")
 				return solution_set
 
-			print("progress {:.3f} %".format(100*(solution.omega-omega_range[0])/(omega_range[-1]-omega_range[0])), "    iterations", iterations, end="\r")
+			print("progress {:.3f} %"\
+         			.format(100*(solution.omega-angular_frequency_range[0])/(angular_frequency_range[-1]-angular_frequency_range[0])),\
+        			 "\titerations", iterations, end="\r")
 
 			# Update step length based on the corrector iterations
 			step_length_adaptation.update_step_length(iterations)
 
 			# Check if the omega is within the specified range
-			if  not (omega_range[0] <= solution.omega <= omega_range[-1]):
-				print("\nTerminate: outside omega range")
+			if  not (angular_frequency_range[0] <= solution.omega <= angular_frequency_range[-1]):
+				print("\nTerminate: outside frequency range.\nTotal number of points: ", len(solution_set.iterations), "\nTotal solving time:", current_time()-t0, "seconds")
 				return solution_set
 
 			# Update the reference predictor vector for the next continuation step
 			reference_direction = FourierOmegaPoint.to_RI_omega_static(solution - previous_solution)
 
-		print("\nTerminate: maximum number of points reached")
+		print("\nTerminate: maximum number of solutions reached", "\nTotal solving time:", current_time()-t0, "seconds")
 		return solution_set
 
+	def _solve_and_continue(
+		self, 
+		maximum_number_of_solutions, 
+		angular_frequency_range, 
+		solver_kwargs: dict, 
+		step_length_adaptation_kwargs: dict,
+		predictor_kwargs: dict = {},
+		initial_guess: FourierOmegaPoint = None, 
+		initial_reference_direction: FourierOmegaPoint = None, 
+	) -> SolutionSet:
+		t0 = current_time()
+		
+		# Initialize the continuation process
+		angular_frequency_range.sort()
+		solver, step_length_adaptation, solution, jacobian, reference_direction, solution_set = \
+			self._initialize_continuation(
+				angular_frequency_range,
+				solver_kwargs,
+				step_length_adaptation_kwargs,
+				initial_guess,
+				initial_reference_direction
+			)
+		
+		if not solution_set.success:
+			print("\nTerminate: solver failure at initial solution")
+			return solution_set
 
+		# Perform continuation steps
+		solution_set = self._perform_continuation_steps(
+			maximum_number_of_solutions,
+			angular_frequency_range,
+			predictor_kwargs,
+			solver,
+			step_length_adaptation,
+			solution,
+			jacobian,
+			reference_direction,
+			solution_set,
+			t0
+		)
+		
+		return solution_set
 
-# %%
+	def _initialize_continuation(
+		self,
+		angular_frequency_range,
+		solver_kwargs,
+		step_length_adaptation_kwargs,
+		initial_guess,
+		initial_reference_direction
+	):
+		"""Initialize solver, adaptation, and compute initial solution."""
+		angular_frequency_range.sort()
+		
+		solver_kwargs["absolute_tolerance"] *= np.sqrt(2) / Fourier.number_of_time_samples
+		solver = self.solver(
+			func=self.extended_residue,
+			jacobian=self.extended_jacobian,
+			**solver_kwargs
+		)
+		
+		step_length_adaptation = self.step_length_adaptation(**step_length_adaptation_kwargs)
+		
+		if initial_guess is None:
+			initial_guess = self.zero_initialization(omega=angular_frequency_range[0])
+		
+		if initial_reference_direction is not None:
+			reference_direction = FourierOmegaPoint.to_RI_omega_static(initial_reference_direction)
+		else:
+			reference_direction = self.zero_initialization(omega=1.0).to_RI_omega()
+		
+		solution, iterations, success, jacobian = self.solve_fixed_frequency(initial_guess, **solver_kwargs)
+		solution_set = SolutionSet(solution, iterations, step_length_adaptation.step_length)
+		solution_set.success = success
+		
+		return solver, step_length_adaptation, solution, jacobian, reference_direction, solution_set
+
+	def zero_initialization(self, omega):
+		return FourierOmegaPoint.zero_amplitude(dimension=self.freq_domain_ode.ode.dimension, omega=omega)
+
+	def _perform_continuation_steps(
+		self,
+		maximum_number_of_solutions,
+		angular_frequency_range,
+		predictor_kwargs,
+		solver,
+		step_length_adaptation,
+		solution,
+		jacobian,
+		reference_direction,
+		solution_set,
+		t0
+	):
+		"""Perform the continuation steps until completion criteria are met."""
+		for _ in range(maximum_number_of_solutions):
+			previous_solution = solution
+			
+			# Predict next solution
+			predictor_vector, predicted_solution = self._compute_prediction(
+				previous_solution,
+				step_length_adaptation.step_length,
+				jacobian,
+				reference_direction,
+				predictor_kwargs
+			)
+			
+			# Set up corrector parameterization
+			self.parameterization = self.corrector_parameterization(
+				predictor_vector=predictor_vector,
+				predicted_solution=FourierOmegaPoint.to_RI_omega_static(predicted_solution)
+			)
+			
+			# Solve extended system
+			solution, iterations, success, jacobian = solver.solve(predicted_solution, return_jacobian=True)
+			solution_set.append(solution, iterations, step_length_adaptation.step_length)
+			
+			if not success:
+				print("\nTerminate: solver failure")
+				return solution_set
+
+			self._print_progress(solution.omega, angular_frequency_range, iterations)
+			
+			# Update step length
+			step_length_adaptation.update_step_length(iterations)
+			
+			# Check frequency range
+			if not (angular_frequency_range[0] <= solution.omega <= angular_frequency_range[-1]):
+				print(f"\nTerminate: outside frequency range.\nTotal number of points: {len(solution_set.iterations)}"
+					f"\nTotal solving time: {current_time()-t0} seconds")
+				return solution_set
+			
+			# Update reference direction
+			reference_direction = FourierOmegaPoint.to_RI_omega_static(solution - previous_solution)
+		
+		print(f"\nTerminate: maximum number of solutions reached\nTotal solving time: {current_time()-t0} seconds")
+		return solution_set
+
+	def _compute_prediction(
+		self,
+		previous_solution,
+		step_length,
+		jacobian,
+		reference_direction,
+		predictor_kwargs
+	):
+		"""Compute the predictor vector and predicted solution."""
+		if self.predictor.autonomous:
+			phase_shift_direction = previous_solution.adimensional_time_derivative_RI()
+			predictor_kwargs["remove_direction"] = phase_shift_direction / norm(phase_shift_direction)
+		
+		predictor_vector = self.predictor.compute_predictor_vector(
+			step_length=step_length,
+			jacobian=jacobian[:self.freq_domain_ode.real_dimension],
+			reference_direction=reference_direction,
+			**predictor_kwargs
+		)
+		
+		predicted_solution = previous_solution + predictor_vector
+		return predictor_vector, predicted_solution
+
+	def _print_progress(self, omega, angular_frequency_range, iterations):
+		"""Print progress information."""
+		progress = 100 * (omega - angular_frequency_range[0]) / (angular_frequency_range[-1] - angular_frequency_range[0])
+		print(f"progress {progress:.3f} %\titerations {iterations}", end="\r")

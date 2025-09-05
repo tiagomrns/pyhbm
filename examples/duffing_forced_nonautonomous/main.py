@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../s
 
 from pyhbm import *
 
-duffing = DuffingForced(c=0.009, k=1.0, beta=1, P=1.0)  # Create an instance of Duffing
+duffing = DuffingForced(c=0.009, k=1.0, beta=1.0, P=1.0)  # Create an instance of Duffing
 
 duffing_solver = HarmonicBalanceMethod(
     first_order_ode = duffing, 
@@ -42,3 +42,4 @@ solution_set = duffing_solver.solve_and_continue(
 )
 
 solution_set.plot_FRF(degrees_of_freedom=0, xscale='log', yscale='log')
+# %%

@@ -2,32 +2,10 @@
 import numpy as np
 from numpy import cos, sin, array, concatenate
 
-class DynamicalSystem:
-  """
-  Base class for dynamical systems.
-  Class that implements the dynamics
-  zdot = omega z' = f(z, tau) 
-  tau = omega * t
+class ArchBeamSSM(object):
   
-  """
-  def __init__(self):
-    self.linear_coefficient: int = 1
-    self.dimension: int = 1
-    self.polynomial_degree: int = 1
-    
-  def external_term(self, adimensional_time: np.ndarray) -> np.ndarray:
-    raise NotImplementedError("This method should be overridden by subclasses.")
-
-  def linear_term(self, state: np.ndarray) -> np.ndarray:
-    raise NotImplementedError("This method should be overridden by subclasses.")
-
-  def nonlinear_term(self, state: np.ndarray, adimensional_time: np.ndarray) -> np.ndarray:
-    raise NotImplementedError("This method should be overridden by subclasses.")
-
-  def all_terms(self, state: np.ndarray, adimensional_time: np.ndarray) -> np.ndarray:
-    raise NotImplementedError("This method should be overridden by subclasses.")
-
-class ArchBeamSSM(DynamicalSystem):
+  is_real_valued = True
+  
   def __init__(self, P: float = 1.0):
     """
     Initializes the ArchBeamSSM parameters.

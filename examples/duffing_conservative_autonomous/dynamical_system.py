@@ -11,6 +11,9 @@ class DuffingConservative(object):
 	vdot = omega v' = -k*u - beta*(u**3)
 
 	"""
+ 
+	is_real_valued = True
+ 
 	def __init__(self, k=1.0, beta=0.1):
 		"""
 		Initializes the Duffing oscillator parameters.

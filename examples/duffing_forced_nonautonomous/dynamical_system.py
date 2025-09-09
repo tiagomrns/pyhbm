@@ -10,6 +10,9 @@ class DynamicalSystem:
 	tau = omega * t
 	
 	"""
+ 
+	is_real_valued = True
+ 
 	def __init__(self):
 		self.linear_coefficient: int = 1
 		self.dimension: int = 1

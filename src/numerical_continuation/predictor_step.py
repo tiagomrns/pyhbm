@@ -107,7 +107,9 @@ class TangentPredictorTwo(Predictor):
         
         predictor_vector: np.ndarray = null_space(jacobian, rcond=rcond)
         dimension_of_kernel: int = predictor_vector.shape[1]
-        assert dimension_of_kernel == 2, f"TangentPredictorTwo: for rcond={rcond}, dimension_of_kernel={dimension_of_kernel}"
+        if not dimension_of_kernel == 2: 
+            print(f"TangentPredictorTwo: for rcond={rcond}, dimension_of_kernel={dimension_of_kernel}")
+            return None
 
         # remove one direction
         alignment_to_remove: np.ndarray = remove_direction.T @ predictor_vector
@@ -129,7 +131,7 @@ class StepLengthAdaptation(object):
 class ExponentialAdaptation(StepLengthAdaptation):
     def __init__(self, base, maximum_step_length, minimum_step_length, goal_number_of_iterations, initial_step_length=None):
 
-        assert base > 1, "base must be greater than 1"
+        assert base > 1.0, "base must be greater than 1"
         self.base = base
 
         self.max_step_length = maximum_step_length

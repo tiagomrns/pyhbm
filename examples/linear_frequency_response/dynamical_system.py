@@ -19,6 +19,9 @@ class LinearOscillator(object):
 	- tau is the adimensional time, defined as tau = omega * t. Derivative w.r.t tau is x'
 	
 	"""
+ 
+	is_real_valued = True
+ 
 	def __init__(self, A=array, C=array, S=array):
 		"""
 		Initializes the Duffing oscillator parameters.

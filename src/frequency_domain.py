@@ -10,7 +10,7 @@ class Fourier(object):
     polynomial_degree = 3
     
     number_of_harmonics = len(harmonics)
-    harmonic_truncation_order = max(harmonics)
+    harmonic_truncation_order = max(abs(harmonics))
     number_of_time_samples = (polynomial_degree+1)*harmonic_truncation_order+1
     adimensional_time_samples = linspace(0, 2*pi, number_of_time_samples, endpoint=False)
     
@@ -20,7 +20,7 @@ class Fourier(object):
         Fourier.polynomial_degree = polynomial_degree
 
         Fourier.number_of_harmonics = len(Fourier.harmonics)
-        Fourier.harmonic_truncation_order = max(Fourier.harmonics)
+        Fourier.harmonic_truncation_order = max(abs(Fourier.harmonics))
         Fourier.number_of_time_samples = (Fourier.polynomial_degree+1)*Fourier.harmonic_truncation_order+1
         Fourier.adimensional_time_samples = linspace(0, 2*pi, Fourier.number_of_time_samples, endpoint=False)
         
@@ -35,8 +35,17 @@ class Fourier(object):
         # self.real_part = coefficients.real
         # self.imaginary_part = coefficients.imag
         self.time_series = None
-
+        
     def new_from_time_series(time_series: array):
+        """
+        Computes the Fourier coefficients (Fourier instance) of a time series by executing the fast Fourier transform (FFT)
+        """
+        all_coefficients = fft(time_series, axis=0)
+        new = Fourier(all_coefficients[Fourier.harmonics])
+        new.time_series = time_series
+        return new
+
+    def new_from_time_series_real(time_series: array):
         """
         Computes the Fourier coefficients (Fourier instance) of a time series by executing the real fast Fourier transform (rFFT)
         """
@@ -44,8 +53,15 @@ class Fourier(object):
         new = Fourier(all_coefficients[Fourier.harmonics])
         new.time_series = time_series
         return new
-
+    
     def compute_time_series(self) -> None:
+        shape = list(self.coefficients.shape)
+        shape[0] = 2 * Fourier.harmonic_truncation_order + 1
+        new_coeff = zeros(shape, dtype = complex)
+        new_coeff[Fourier.harmonics] = self.coefficients
+        self.time_series = irfft(new_coeff, axis=0, n=Fourier.number_of_time_samples)
+
+    def compute_time_series_real(self) -> None:
         shape = list(self.coefficients.shape)
         shape[0] = Fourier.harmonic_truncation_order + 1
         new_coeff = zeros(shape, dtype = complex)
@@ -167,10 +183,10 @@ class JacobianFourier(object):
         JacobianFourier.number_of_harmonics = len(JacobianFourier.harmonics)
         JacobianFourier.harmonic_truncation_order = max(JacobianFourier.harmonics)
 
-    def __init__(self, RR: array, IR: array, RI: array, II: array) -> None:
+    def __init__(self, RR: array, RI: array, IR: array, II: array) -> None:
         self.RR = RR # Derivative of real part wrt real part
-        self.IR = IR # Derivative of imag part wrt real part
         self.RI = RI # Derivative of real part wrt imag part
+        self.IR = IR # Derivative of imag part wrt real part
         self.II = II # Derivative of imag part wrt imag part
 
     def new_given_all_coefficients(all_coefficients: array) -> None:
@@ -180,15 +196,15 @@ class JacobianFourier(object):
         state_real = hstack(concatenate(state + state_conj, axis=1)) / Fourier.number_of_time_samples
         state_imag = hstack(concatenate(state - state_conj, axis=1)) / Fourier.number_of_time_samples
 
-        return JacobianFourier(RR = state_real.real, IR = state_real.imag, RI = -state_imag.imag, II = state_imag.real)
+        return JacobianFourier(RR = state_real.real, RI = -state_imag.imag, IR = state_real.imag, II = state_imag.real)
 
     def new_from_time_series(time_series: array):
         """
-        Computes the Fourier coefficients (Fourier instance) of a time series by executing the real fast Fourier transform (rFFT)
+        Computes the JacobianFourier coefficients given a time series by executing the fast Fourier transform (FFT)
         """
         all_coefficients = fft(time_series, axis=0)
-        new = Fourier(all_coefficients[Fourier.harmonics])
-        new.time_series = time_series
+        #new = Fourier(all_coefficients[Fourier.harmonics])
+        #new.time_series = time_series
         return JacobianFourier.new_given_all_coefficients(all_coefficients)
 
 
@@ -199,17 +215,11 @@ class FrequencyDomainFirstOrderODE(object):
         self.I = eye(self.ode.dimension)
         self.complex_dimension = Fourier.number_of_harmonics * self.ode.dimension
         self.real_dimension = self.complex_dimension * 2
-        self.linear_coefficients_real = kron(eye(Fourier.number_of_harmonics), self.ode.linear_coefficient)
         self.time_derivative_coefficients_imaginary = kron(diag(Fourier.harmonics), self.I)
 
         self.external_term = self.compute_external_force()
         self.linear = self.compute_linear_term()
         self.jacobian_linear_term = self.compute_jacobian_linear_term()
-
-    # External Force
-    def compute_external_force(self) -> Fourier:
-        external_term_time_series = self.ode.external_term(Fourier.adimensional_time_samples)
-        return Fourier.new_from_time_series(external_term_time_series)
 
     # Linear Term
     def compute_linear_term(self) -> Fourier:
@@ -226,7 +236,17 @@ class FrequencyDomainFirstOrderODE(object):
         RI = kron(diag(Fourier.harmonics), eye(self.ode.dimension))
         IR = -RI 
 
-        return JacobianFourier(RR, IR, RI, II)
+        return JacobianFourier(RR=RR, RI=RI, IR=IR, II=II)
+    
+    """
+    # The following methods are for systems where the external force and nonlinear terms are complex-valued
+    # and the Fourier coefficients are computed using the FFT (FFT).
+    """
+    
+    # External Force
+    def compute_external_force(self) -> Fourier:
+        external_term_time_series = self.ode.external_term(Fourier.adimensional_time_samples)
+        return Fourier.new_from_time_series(external_term_time_series)
 
     # Nonlinear Term
     def compute_nonlinear_term(self, state: Fourier) -> Fourier:
@@ -244,6 +264,38 @@ class FrequencyDomainFirstOrderODE(object):
     # Residue in Real-Imaginary Format
     def compute_residue_RI(self, x: FourierOmegaPoint) -> array:
         return self.compute_residue(x.fourier, x.omega).to_RI()
+    
+    """
+    # The following methods are for systems where the external force and nonlinear terms are real-valued
+    # and the Fourier coefficients are computed using the real FFT (rFFT).
+    """
+    
+    # External Force Real
+    def compute_external_force_real(self) -> Fourier:
+        external_term_time_series = self.ode.external_term(Fourier.adimensional_time_samples)
+        return Fourier.new_from_time_series_real(external_term_time_series)
+
+    # Nonlinear Term Real
+    def compute_nonlinear_term_real(self, state: Fourier) -> Fourier:
+        state.compute_time_series_real()
+        fnl_time_series = self.ode.nonlinear_term(state.time_series, Fourier.adimensional_time_samples)
+        return Fourier.new_from_time_series_real(fnl_time_series)
+
+    # Residue Real
+    def compute_residue_real(self, state: Fourier, omega: float) -> Fourier:
+        nonlinear_term = self.compute_nonlinear_term_real(state)
+        linear_term_coefficients = (self.linear.coefficients.real + omega * 1j * self.linear.coefficients.imag) @ state.coefficients
+        residue_coefficients = linear_term_coefficients + nonlinear_term.coefficients + self.external_term.coefficients
+        return Fourier(residue_coefficients)
+
+    # Residue Real in Real-Imaginary Format
+    def compute_residue_real_RI(self, x: FourierOmegaPoint) -> array:
+        return self.compute_residue_real(x.fourier, x.omega).to_RI()
+    
+    """
+    # The following methods compute the Jacobian of the nonlinear term and the residue.
+    # These methods are valid for both complex-valued and real-valued systems.
+    """
 
     # Jacobian of Nonlinear Term
     def compute_jacobian_nonlinear_term(self, state: Fourier) -> JacobianFourier:
@@ -275,32 +327,34 @@ class FrequencyDomainFirstOrderODE(object):
 
 # Test
 
-"""import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples/duffing')))
-from dynamical_system import *
+if __name__ == "__main__":
 
-duffing = Duffing(c=1, k=2, beta=1, P=2)
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples/duffing_forced_nonautonomous')))
+    from dynamical_system import *
 
-q1 = 2 + 1j
-q3 = 0 + 0j
-omega = 10
+    duffing = DuffingForced(c=1, k=2, beta=1, P=2)
 
-z1 = array([[1],[1j*omega]]) * q1
-z3 = array([[1],[3j*omega]]) * q3
+    q1 = 2 + 1j
+    q3 = 0 + 0j
+    omega = 10
 
-x = FourierOmegaPoint(Fourier(array([z1,z3]) * Fourier.number_of_time_samples), omega)
+    z1 = array([[1],[1j*omega]]) * q1
+    z3 = array([[1],[3j*omega]]) * q3
 
-duffing_frequency_domain = FrequencyDomainFirstOrderODE(duffing)
+    x = FourierOmegaPoint(Fourier(array([z1,z3]) * Fourier.number_of_time_samples), omega)
 
-residue = duffing_frequency_domain.compute_residue_RI(x)
+    duffing_frequency_domain = FrequencyDomainFirstOrderODE(duffing)
 
-actual_residue = residue / Fourier.number_of_time_samples
+    residue = duffing_frequency_domain.compute_residue_RI(x)
 
-print("actual_residue =\n",  np.round(actual_residue[1::2], 9).ravel())
+    actual_residue = residue / Fourier.number_of_time_samples
 
-jacobian = duffing_frequency_domain.compute_jacobian_of_residue_RI(x) 
+    print("actual_residue =\n",  np.round(actual_residue[1::2], 9).ravel())
 
-actual_jacobian = jacobian
+    jacobian = duffing_frequency_domain.compute_jacobian_of_residue_RI(x) 
 
-print("actual_jacobian =\n", np.round(actual_jacobian[1::2,0::2], 9))"""
+    actual_jacobian = jacobian
+
+    print("actual_jacobian =\n", np.round(actual_jacobian[1::2,0::2], 9))

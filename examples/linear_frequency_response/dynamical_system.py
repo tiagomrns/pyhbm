@@ -20,9 +20,7 @@ class LinearOscillator(object):
 	
 	"""
  
-	is_real_valued = True
- 
-	def __init__(self, A=array, C=array, S=array):
+	def __init__(self, A=array, C=array, S=array, is_real_valued = True):
 		"""
 		Initializes the Duffing oscillator parameters.
 
@@ -34,6 +32,7 @@ class LinearOscillator(object):
 		self.C, self.S = array(C)[None,...], array(S)[None,...]
 		self.dimension = self.linear_coefficient.shape[0]
 		self.polynomial_degree = 1
+		self.is_real_valued = is_real_valued
 
 	def external_term(self, adimensional_time: np.ndarray) -> np.ndarray:
 		"""

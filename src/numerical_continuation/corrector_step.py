@@ -15,8 +15,8 @@ class NewtonRaphson(object):
 
 	def increment(self):
 		# Solve for the increment using the Jacobian and the residue
-		delta: np.ndarray = solve(self.jacobian, -self.residue)
-		self.x = self.x + delta  # Update the guess
+		delta: np.ndarray = solve(self.jacobian, self.residue)
+		self.x = self.x - delta  # Update the guess
   
 	def converged_solution(self, iteration: int, return_jacobian: bool):
 		if not return_jacobian: 
@@ -35,8 +35,8 @@ class NewtonRaphson(object):
 
 			self.jacobian = self.compute_jacobian(self.x)
 			self.increment()
-
-		print("Maximum number of iterations reached:", self.maximum_iterations)
+			
+		print(f"Newton-Rahpson: maximum number of iterations reached (={self.maximum_iterations})")
 		return (self.x, self.maximum_iterations, False, self.jacobian) if return_jacobian \
 				else (self.x, self.maximum_iterations, False)
 	

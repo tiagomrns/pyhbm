@@ -10,34 +10,6 @@ from numerical_continuation.corrector_step import *
 from numerical_continuation.predictor_step import *
 from frequency_domain import *
 
-class DynamicalSystem:
-  """
-  Base class for dynamical systems.
-  Class that implements the dynamics
-  zdot = omega z' = f(z, tau) 
-  tau = omega * t
-  
-  """
-  
-  is_real_valued: bool = True
-  
-  def __init__(self):
-    self.linear_coefficient: int = 1
-    self.dimension: int = 1
-    self.polynomial_degree: int = 1
-    
-  def external_term(self, adimensional_time: np.ndarray) -> np.ndarray:
-    raise NotImplementedError("This method should be overridden by subclasses.")
-
-  def linear_term(self, state: np.ndarray) -> np.ndarray:
-    raise NotImplementedError("This method should be overridden by subclasses.")
-
-  def nonlinear_term(self, state: np.ndarray, adimensional_time: np.ndarray) -> np.ndarray:
-    raise NotImplementedError("This method should be overridden by subclasses.")
-
-  def all_terms(self, state: np.ndarray, adimensional_time: np.ndarray) -> np.ndarray:
-    raise NotImplementedError("This method should be overridden by subclasses.")
-
 class SolutionSet(object):
 	def __init__(self, solution: FourierOmegaPoint, iterations: int, step_length: float):
 		self.fourier = [solution.fourier]
@@ -101,7 +73,7 @@ class SolutionSet(object):
 			pickle.dump(solution_set, handle)
 
 class HarmonicBalanceMethod:
-	def __init__(self, first_order_ode: DynamicalSystem, 
+	def __init__(self, first_order_ode: FirstOrderODE, 
 				harmonics: np.ndarray, 
 				corrector_solver = NewtonRaphson, 
 				corrector_parameterization: CorrectorParameterization = OrthogonalParameterization, 
@@ -112,7 +84,8 @@ class HarmonicBalanceMethod:
 		HarmonicBalanceMethod.update_dependencies(harmonics, first_order_ode.polynomial_degree)
 		
 		# Initialize the frequency domain ODE from the time domain ODE
-		self.freq_domain_ode = FrequencyDomainFirstOrderODE(first_order_ode)
+		self.freq_domain_ode = FrequencyDomainFirstOrderODE_Real(first_order_ode) if first_order_ode.is_real_valued \
+      		else FrequencyDomainFirstOrderODE_Complex(first_order_ode)
 
 		# Set up solver components
 		self.solver = corrector_solver
@@ -136,7 +109,7 @@ class HarmonicBalanceMethod:
 		Returns the solution and the Jacobian matrix.
 		"""
 		solution, iterations, success, jacobian = self.solver(
-			func = self.freq_domain_ode.compute_residue_real_RI if self.freq_domain_ode.ode.is_real_valued else self.freq_domain_ode.compute_residue_RI, 
+			func = self.freq_domain_ode.compute_residue_RI, 
 			jacobian = self.freq_domain_ode.compute_jacobian_of_residue_RI, 
 			**solver_kwargs
 		).solve(initial_guess, return_jacobian=True)
@@ -155,14 +128,6 @@ class HarmonicBalanceMethod:
 		Compute the extended residue, including parameterization.
 		"""
 		residue = self.freq_domain_ode.compute_residue_RI(x)
-		parameterization = self.parameterization.compute_parameterization(x.to_RI_omega())
-		return vstack((residue, parameterization))
-
-	def extended_residue_real(self, x: FourierOmegaPoint):
-		"""
-		Compute the extended residue for real valued systems, including parameterization.
-		"""
-		residue = self.freq_domain_ode.compute_residue_real_RI(x)
 		parameterization = self.parameterization.compute_parameterization(x.to_RI_omega())
 		return vstack((residue, parameterization))
 
@@ -195,7 +160,7 @@ class HarmonicBalanceMethod:
 		solver_kwargs["absolute_tolerance"] *= np.sqrt(2) / Fourier.number_of_time_samples
   
 		solver = self.solver(
-			func = self.extended_residue_real if self.freq_domain_ode.ode.is_real_valued else self.extended_residue, 
+			func = self.extended_residue, 
 			jacobian = self.extended_jacobian, 
 			**solver_kwargs
 		)
@@ -221,8 +186,6 @@ class HarmonicBalanceMethod:
 		if not success:
 			print("\nTerminate: solver failure at initial solution (empty solution set)")
 			return solution_set
-  
-		# print("progress {:.3f} %".format(100*(solution.omega-omega_range[0])/(omega_range[-1]-omega_range[0])), "    iterations", iterations, end="\r")
 
 		for solution_number in range(1, maximum_number_of_solutions):
 			

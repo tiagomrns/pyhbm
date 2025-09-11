@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import array, concatenate, unique, hstack, array_split, vstack, einsum, pi, linspace, zeros, eye, kron, diag, where, block, zeros_like
-from numpy.fft import rfft, irfft, fft
+from scipy.linalg import block_diag
+from numpy.fft import rfft, irfft, fft, ifft
 
 
 # %%
@@ -16,7 +17,8 @@ class Fourier(object):
     
     @staticmethod
     def update_class_variables(harmonics: array, polynomial_degree: int):
-        Fourier.harmonics = unique(harmonics) # list of relevant harmonics
+        indexes = sorted(np.unique(harmonics, return_index=True)[1])
+        Fourier.harmonics = array(harmonics)[indexes] # list of relevant harmonics
         Fourier.polynomial_degree = polynomial_degree
 
         Fourier.number_of_harmonics = len(Fourier.harmonics)
@@ -35,41 +37,21 @@ class Fourier(object):
         # self.real_part = coefficients.real
         # self.imaginary_part = coefficients.imag
         self.time_series = None
-        
-    def new_from_time_series(time_series: array):
-        """
-        Computes the Fourier coefficients (Fourier instance) of a time series by executing the fast Fourier transform (FFT)
-        """
-        all_coefficients = fft(time_series, axis=0)
-        new = Fourier(all_coefficients[Fourier.harmonics])
-        new.time_series = time_series
-        return new
+        self.adimensional_time_derivative = None
 
-    def new_from_time_series_real(time_series: array):
-        """
-        Computes the Fourier coefficients (Fourier instance) of a time series by executing the real fast Fourier transform (rFFT)
-        """
-        all_coefficients = rfft(time_series, axis=0)
-        new = Fourier(all_coefficients[Fourier.harmonics])
-        new.time_series = time_series
-        return new
+    def compute_adimensional_time_derivative(self):
+        self.adimensional_time_derivative = einsum('i,ijk->ijk', Fourier.harmonics, self.coefficients) * 1j
     
-    def compute_time_series(self) -> None:
-        shape = list(self.coefficients.shape)
-        shape[0] = 2 * Fourier.harmonic_truncation_order + 1
-        new_coeff = zeros(shape, dtype = complex)
-        new_coeff[Fourier.harmonics] = self.coefficients
-        self.time_series = irfft(new_coeff, axis=0, n=Fourier.number_of_time_samples)
-
-    def compute_time_series_real(self) -> None:
-        shape = list(self.coefficients.shape)
-        shape[0] = Fourier.harmonic_truncation_order + 1
-        new_coeff = zeros(shape, dtype = complex)
-        new_coeff[Fourier.harmonics] = self.coefficients
-        self.time_series = irfft(new_coeff, axis=0, n=Fourier.number_of_time_samples)
-
-    def adimensional_time_derivative(self):
-        return Fourier(coefficients = einsum('i,ijk->ijk', Fourier.harmonics, self.coefficients) * 1j)
+    def get_adimensional_time_derivative(self):
+        if self.adimensional_time_derivative is None:
+            self.compute_adimensional_time_derivative()
+        return self.adimensional_time_derivative
+    
+    def new_from_time_series(time_series: array):
+        pass
+    
+    def compute_time_series(self):
+        pass
 
     def __add__(self, other):
         return Fourier(coefficients = self.coefficients + other.coefficients)
@@ -102,11 +84,48 @@ class Fourier(object):
     
     @staticmethod
     def new_from_first_harmonic(first_harmonic: array):
-        assert 1 in Fourier.harmonics, "Harmonic 1 is not in the provided list of harmonics"
+        assert 1 in Fourier.harmonics, "Fourier: Harmonic 1 is not in the list of harmonics"
         z1 = first_harmonic * 0.5 * Fourier.number_of_time_samples
         zz = zeros_like(z1)
         zz_fill = [zz if h !=1 else z1 for h in Fourier.harmonics]
         return Fourier(array(zz_fill))
+    
+class Fourier_Real(Fourier):
+    def new_from_time_series(time_series: array):
+        """
+        Computes the Fourier coefficients (Fourier instance) of a time series by executing the Real Fast Fourier transform (rFFT)
+        """
+        all_coefficients = rfft(time_series, axis=0)
+        new = Fourier(all_coefficients[Fourier.harmonics])
+        new.time_series = time_series
+        return new
+    
+    def compute_time_series(self) -> None:
+        shape = list(self.coefficients.shape)
+        shape[0] = Fourier.harmonic_truncation_order + 1
+        new_coeff = zeros(shape, dtype = complex)
+        new_coeff[Fourier.harmonics] = self.coefficients
+        # inverse of Real FFT
+        self.time_series = irfft(new_coeff, axis=0, n=Fourier.number_of_time_samples)
+        
+class Fourier_Complex(Fourier):
+    def new_from_time_series(time_series: array):
+        """
+        Computes the Fourier coefficients (Fourier instance) of a time series by executing the Fast Fourier transform (FFT)
+        """
+        all_coefficients = fft(time_series, axis=0)
+        new = Fourier(all_coefficients[Fourier.harmonics])
+        new.time_series = time_series
+        return new
+    
+    def compute_time_series(self) -> None:
+        shape = list(self.coefficients.shape)
+        shape[0] = 2 * Fourier.harmonic_truncation_order + 1
+        new_coeff = zeros(shape, dtype = complex)
+        new_coeff[Fourier.harmonics] = self.coefficients
+        # inverse of FFT
+        self.time_series = ifft(new_coeff, axis=0, n=Fourier.number_of_time_samples)
+    
 #%%
 
 class FourierOmegaPoint(object):
@@ -154,8 +173,10 @@ class FourierOmegaPoint(object):
         return x.to_RI_omega()
     
     def adimensional_time_derivative_RI(self) -> array:
-        adimensional_time_derivative = self.fourier.adimensional_time_derivative()
-        return vstack((adimensional_time_derivative.to_RI(), 0.0))
+        adimensional_time_derivative = self.fourier.get_adimensional_time_derivative()
+        R = vstack(adimensional_time_derivative.real)
+        I = vstack(adimensional_time_derivative.imag)
+        return vstack((R, I, 0.0))
     
     def zero_amplitude(dimension: int, omega: float):
         return FourierOmegaPoint(Fourier.zeros(dimension), omega)
@@ -188,142 +209,206 @@ class JacobianFourier(object):
         self.RI = RI # Derivative of real part wrt imag part
         self.IR = IR # Derivative of imag part wrt real part
         self.II = II # Derivative of imag part wrt imag part
+        
+    def new_from_time_series(time_series: array):
+        pass
+    
+    def new_given_all_coefficients(all_coefficients: array):
+        pass
 
-    def new_given_all_coefficients(all_coefficients: array) -> None:
-
-        state = array([all_coefficients[harmonics] for harmonics in JacobianFourier.harmonics_state]) # row by row
-        state_conj = array([all_coefficients[harmonics] for harmonics in JacobianFourier.harmonics_state_conj])
-        state_real = hstack(concatenate(state + state_conj, axis=1)) / Fourier.number_of_time_samples
-        state_imag = hstack(concatenate(state - state_conj, axis=1)) / Fourier.number_of_time_samples
-
-        return JacobianFourier(RR = state_real.real, RI = -state_imag.imag, IR = state_real.imag, II = state_imag.real)
-
+class JacobianFourier_Real(JacobianFourier):
+    
     def new_from_time_series(time_series: array):
         """
         Computes the JacobianFourier coefficients given a time series by executing the fast Fourier transform (FFT)
         """
         all_coefficients = fft(time_series, axis=0)
-        #new = Fourier(all_coefficients[Fourier.harmonics])
-        #new.time_series = time_series
-        return JacobianFourier.new_given_all_coefficients(all_coefficients)
+        return JacobianFourier_Real.new_given_all_coefficients(all_coefficients)
+    
+    def new_given_all_coefficients(all_coefficients: array):
 
+        state = array([all_coefficients[harmonics] for harmonics in JacobianFourier.harmonics_state]) # row by row
+        state_conj = array([all_coefficients[harmonics] for harmonics in JacobianFourier.harmonics_state_conj])
+        state_real = hstack(concatenate(state + state_conj, axis=1)) / Fourier.number_of_time_samples
+        state_imag = hstack(concatenate(state - state_conj, axis=1)) / Fourier.number_of_time_samples
+        
+        return JacobianFourier_Real(RR = state_real.real, RI = -state_imag.imag, IR = state_real.imag, II = state_imag.real)
+
+class JacobianFourier_Complex(JacobianFourier):
+    
+    def new_from_time_series(time_series: array):
+        """
+        Computes the JacobianFourier coefficients given a time series by executing the fast Fourier transform (FFT)
+        """
+        all_coefficients = fft(time_series, axis=0)
+        return JacobianFourier_Complex.new_given_all_coefficients(all_coefficients)
+    
+    def new_given_all_coefficients(all_coefficients: array):
+        state_blocks = array([all_coefficients[harmonics] for harmonics in JacobianFourier.harmonics_state])
+        state = hstack(concatenate(state_blocks, axis=1)) / Fourier.number_of_time_samples
+        return JacobianFourier_Complex(RR = state.real, RI = -state.imag, IR = state.imag, II = state.real)
 
 #%% 
+
+class FirstOrderODE:
+  """
+  Base class for dynamical systems.
+  Class that implements the dynamics
+  zdot = omega z' = f(z, tau) 
+  tau = omega * t
+  
+  """
+  
+  is_real_valued: bool = True
+  
+  def __init__(self):
+    self.linear_coefficient: int = 1
+    self.dimension: int = 1
+    self.polynomial_degree: int = 1
+    
+  def external_term(self, adimensional_time: array) -> array:
+    raise NotImplementedError("This method should be overridden by subclasses.")
+
+  def linear_term(self, state: array) -> array:
+    raise NotImplementedError("This method should be overridden by subclasses.")
+
+  def nonlinear_term(self, state: array, adimensional_time: array) -> array:
+    raise NotImplementedError("This method should be overridden by subclasses.")
+
 class FrequencyDomainFirstOrderODE(object):
-    def __init__(self, first_order_ode) -> None:
+    def __init__(self, first_order_ode: FirstOrderODE) -> None:
         self.ode = first_order_ode
-        self.I = eye(self.ode.dimension)
         self.complex_dimension = Fourier.number_of_harmonics * self.ode.dimension
         self.real_dimension = self.complex_dimension * 2
-        self.time_derivative_coefficients_imaginary = kron(diag(Fourier.harmonics), self.I)
 
         self.external_term = self.compute_external_force()
-        self.linear = self.compute_linear_term()
         self.jacobian_linear_term = self.compute_jacobian_linear_term()
 
-    # Linear Term
-    def compute_linear_term(self) -> Fourier:
-        linear_coefficients = array([self.ode.linear_coefficient - self.I * n * 1j for n in Fourier.harmonics])
-        return Fourier(linear_coefficients)
-
-    # Linear Jacobian
+    # Residue in Real-Imaginary Format
+    def compute_residue_RI(self, x: FourierOmegaPoint) -> array:
+        state = x.fourier
+        nonlinear_term = self.compute_nonlinear_term(state)
+        linear_term_coefficients = self.ode.linear_coefficient @ state.coefficients - state.get_adimensional_time_derivative() * x.omega
+        residue_coefficients = linear_term_coefficients + nonlinear_term.coefficients + self.external_term.coefficients
+        return Fourier(residue_coefficients).to_RI()
+    
+    # Derivative of Residue with respect to omega in Real-Imaginary Format
+    def compute_derivative_wrt_omega_RI(self, state: Fourier) -> array:
+        derivative_wrt_omega = -state.get_adimensional_time_derivative()
+        R = vstack(derivative_wrt_omega.real)
+        I = vstack(derivative_wrt_omega.imag)
+        return vstack((R, I))
+    
+    """
+    # The following methods must be specified separately for real-valued and complex-valued systems.
+    """
+    
     def compute_jacobian_linear_term(self) -> JacobianFourier:
+        pass
+    
+    def compute_external_force(self) -> Fourier:
+        pass
+
+    def compute_nonlinear_term(self, state: Fourier) -> Fourier:
+        pass
+    
+    def compute_jacobian_nonlinear_term(self, state: Fourier) -> JacobianFourier:
+        pass
+
+    def compute_jacobian_of_residue_RI(self, x: FourierOmegaPoint) -> array:
+        pass
+
+class FrequencyDomainFirstOrderODE_Real(FrequencyDomainFirstOrderODE):
+    
+    """
+    # The following methods are for systems where the external force and nonlinear terms are real-valued
+    # and the Fourier coefficients are computed using the Real FFT (rFFT).
+    """
+    
+    # Linear Jacobian for Real-Valued Systems
+    def compute_jacobian_linear_term(self) -> JacobianFourier_Real:
+
         state = kron(eye(Fourier.number_of_harmonics), self.ode.linear_coefficient)
         state_conj = kron(where(JacobianFourier.harmonics_state_conj == 0, 1, 0), self.ode.linear_coefficient)
 
         RR = state + state_conj
         II = state - state_conj
-        RI = kron(diag(Fourier.harmonics), eye(self.ode.dimension))
-        IR = -RI 
+        self.jacobian_derivative_term = kron(diag(Fourier.harmonics), eye(self.ode.dimension))
+        # RI = 0
+        # IR = -RI = 0
+        return JacobianFourier_Real(RR=RR, RI=None, IR=None, II=II)
+    
+    # External Force for Real-Valued Systems
+    def compute_external_force(self) -> Fourier_Real:
+        external_term_time_series = self.ode.external_term(Fourier.adimensional_time_samples)
+        return Fourier_Real.new_from_time_series(external_term_time_series)
 
-        return JacobianFourier(RR=RR, RI=RI, IR=IR, II=II)
+    # Nonlinear Term for Real-Valued Systems
+    def compute_nonlinear_term(self, state: Fourier_Real) -> Fourier_Real:
+        Fourier_Real.compute_time_series(state)
+        fnl_time_series = self.ode.nonlinear_term(state.time_series, Fourier.adimensional_time_samples)
+        return Fourier_Real.new_from_time_series(fnl_time_series)
+    
+    def compute_jacobian_nonlinear_term(self, state: Fourier_Real) -> JacobianFourier_Real:
+        dfnldq_time_series = self.ode.jacobian_nonlinear_term(state.time_series, Fourier.adimensional_time_samples)
+        return JacobianFourier_Real.new_from_time_series(dfnldq_time_series)
+
+    # Jacobian of Residue for Real-Valued Systems in Real-Imaginary Format
+    def compute_jacobian_of_residue_RI(self, x: FourierOmegaPoint) -> array:
+
+        jacobian_nonlinear_term = self.compute_jacobian_nonlinear_term(x.fourier)
+        aux = self.jacobian_derivative_term * x.omega
+
+        J_RR = jacobian_nonlinear_term.RR + self.jacobian_linear_term.RR
+        J_RI = jacobian_nonlinear_term.RI + aux
+        J_IR = jacobian_nonlinear_term.IR - aux
+        J_II = jacobian_nonlinear_term.II + self.jacobian_linear_term.II
+
+        return block([[J_RR, J_RI], [J_IR, J_II]])
+
+class FrequencyDomainFirstOrderODE_Complex(FrequencyDomainFirstOrderODE):
     
     """
     # The following methods are for systems where the external force and nonlinear terms are complex-valued
     # and the Fourier coefficients are computed using the FFT (FFT).
     """
     
-    # External Force
-    def compute_external_force(self) -> Fourier:
+    # Linear Jacobian for Complex-Valued Systems
+    def compute_jacobian_linear_term(self) -> JacobianFourier_Complex:
+        linear = kron(eye(Fourier.number_of_harmonics), self.ode.linear_coefficient)
+        self.jacobian_derivative_term = kron(diag(Fourier.harmonics), eye(self.ode.dimension))
+        # IR = -RI = linear.imag
+        # II = RR = linear.real
+        return JacobianFourier_Complex(RR = linear.real, RI = -linear.imag, IR = None, II = None)
+    
+    # External Force for Complex-Valued Systems
+    def compute_external_force(self) -> Fourier_Complex:
         external_term_time_series = self.ode.external_term(Fourier.adimensional_time_samples)
-        return Fourier.new_from_time_series(external_term_time_series)
+        return Fourier_Complex.new_from_time_series(external_term_time_series)
 
-    # Nonlinear Term
-    def compute_nonlinear_term(self, state: Fourier) -> Fourier:
-        state.compute_time_series()
+    # Nonlinear Term for Complex-Valued Systems
+    def compute_nonlinear_term(self, state: Fourier_Complex) -> Fourier_Complex:
+        Fourier_Complex.compute_time_series(state)
         fnl_time_series = self.ode.nonlinear_term(state.time_series, Fourier.adimensional_time_samples)
-        return Fourier.new_from_time_series(fnl_time_series)
-
-    # Residue
-    def compute_residue(self, state: Fourier, omega: float) -> Fourier:
-        nonlinear_term = self.compute_nonlinear_term(state)
-        linear_term_coefficients = (self.linear.coefficients.real + omega * 1j * self.linear.coefficients.imag) @ state.coefficients
-        residue_coefficients = linear_term_coefficients + nonlinear_term.coefficients + self.external_term.coefficients
-        return Fourier(residue_coefficients)
-
-    # Residue in Real-Imaginary Format
-    def compute_residue_RI(self, x: FourierOmegaPoint) -> array:
-        return self.compute_residue(x.fourier, x.omega).to_RI()
+        return Fourier_Complex.new_from_time_series(fnl_time_series)
     
-    """
-    # The following methods are for systems where the external force and nonlinear terms are real-valued
-    # and the Fourier coefficients are computed using the real FFT (rFFT).
-    """
-    
-    # External Force Real
-    def compute_external_force_real(self) -> Fourier:
-        external_term_time_series = self.ode.external_term(Fourier.adimensional_time_samples)
-        return Fourier.new_from_time_series_real(external_term_time_series)
-
-    # Nonlinear Term Real
-    def compute_nonlinear_term_real(self, state: Fourier) -> Fourier:
-        state.compute_time_series_real()
-        fnl_time_series = self.ode.nonlinear_term(state.time_series, Fourier.adimensional_time_samples)
-        return Fourier.new_from_time_series_real(fnl_time_series)
-
-    # Residue Real
-    def compute_residue_real(self, state: Fourier, omega: float) -> Fourier:
-        nonlinear_term = self.compute_nonlinear_term_real(state)
-        linear_term_coefficients = (self.linear.coefficients.real + omega * 1j * self.linear.coefficients.imag) @ state.coefficients
-        residue_coefficients = linear_term_coefficients + nonlinear_term.coefficients + self.external_term.coefficients
-        return Fourier(residue_coefficients)
-
-    # Residue Real in Real-Imaginary Format
-    def compute_residue_real_RI(self, x: FourierOmegaPoint) -> array:
-        return self.compute_residue_real(x.fourier, x.omega).to_RI()
-    
-    """
-    # The following methods compute the Jacobian of the nonlinear term and the residue.
-    # These methods are valid for both complex-valued and real-valued systems.
-    """
-
-    # Jacobian of Nonlinear Term
-    def compute_jacobian_nonlinear_term(self, state: Fourier) -> JacobianFourier:
+    # Jacobian of Nonlinear Term for Complex-Valued Systems
+    def compute_jacobian_nonlinear_term(self, state: Fourier_Complex) -> JacobianFourier_Complex:
         dfnldq_time_series = self.ode.jacobian_nonlinear_term(state.time_series, Fourier.adimensional_time_samples)
-        return JacobianFourier.new_from_time_series(dfnldq_time_series)
-
-    # Jacobian of Residue in Real-Imaginary Format
+        return JacobianFourier_Complex.new_from_time_series(dfnldq_time_series)
+    
+    # Jacobian of Residue for Complex-Valued Systems in Real-Imaginary Format
     def compute_jacobian_of_residue_RI(self, x: FourierOmegaPoint) -> array:
 
         jacobian_nonlinear_term = self.compute_jacobian_nonlinear_term(x.fourier)
+        aux = self.jacobian_linear_term.RI + self.jacobian_derivative_term * x.omega
 
         J_RR = jacobian_nonlinear_term.RR + self.jacobian_linear_term.RR
-        J_RI = jacobian_nonlinear_term.RI + self.jacobian_linear_term.RI * x.omega
-        J_IR = jacobian_nonlinear_term.IR + self.jacobian_linear_term.IR * x.omega
-        J_II = jacobian_nonlinear_term.II + self.jacobian_linear_term.II
-
+        J_RI = jacobian_nonlinear_term.RI + aux
+        J_IR = jacobian_nonlinear_term.IR - aux
+        J_II = jacobian_nonlinear_term.II + self.jacobian_linear_term.RR
+        
         return block([[J_RR, J_RI], [J_IR, J_II]])
-
-    # Derivative of Residue with respect to omega
-    def compute_derivative_wrt_omega(self, state: Fourier) -> array:
-        return self.linear.coefficients.imag @ state.coefficients * 1j
-    
-    # Derivative of Residue with respect to omega in Real-Imaginary Format
-    def compute_derivative_wrt_omega_RI(self, state: Fourier) -> array:
-        derivative_wrt_omega = self.compute_derivative_wrt_omega(state)
-        R = vstack(derivative_wrt_omega.real)
-        I = vstack(derivative_wrt_omega.imag)
-        return vstack((R, I))
 
 # Test
 
@@ -358,3 +443,4 @@ if __name__ == "__main__":
     actual_jacobian = jacobian
 
     print("actual_jacobian =\n", np.round(actual_jacobian[1::2,0::2], 9))
+# %%

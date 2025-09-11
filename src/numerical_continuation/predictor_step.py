@@ -76,9 +76,10 @@ class TangentPredictorOne(Predictor):
     @staticmethod
     def compute_predictor_vector(step_length: float, 
                                  jacobian: np.ndarray, 
-                                 reference_direction: np.ndarray) -> np.ndarray:
+                                 reference_direction: np.ndarray,
+                                 rcond: float = None) -> np.ndarray:
         
-        predictor_vector: np.ndarray = null_space(jacobian)
+        predictor_vector: np.ndarray = null_space(jacobian, rcond=rcond)
         # normalize predictor_vector
         predictor_vector /= norm(predictor_vector)
         # align predictor_vector with reference

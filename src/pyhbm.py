@@ -26,7 +26,7 @@ class SolutionSet(object):
 	def __len__(self):
 		return len(self.solution)
 
-	def plot_FRF(self, degrees_of_freedom:list, harmonic:int = None, reference_omega:float =None, yscale='linear', xscale='linear', show=True):
+	def plot_FRF(self, degrees_of_freedom:list, harmonic:int = None, reference_omega:float =None, yscale='linear', xscale='linear', show=True, **kwargs):
      
 		for dof in array([degrees_of_freedom]).ravel():
 			if harmonic is None:
@@ -39,11 +39,11 @@ class SolutionSet(object):
 				plt.ylabel(r"$|Q_{%d, %d}|$" % (harmonic, dof))
 
 		if reference_omega is None:
-			plt.plot(self.omega, harmonic_amplitude)
+			plt.plot(self.omega, harmonic_amplitude, **kwargs)
 			plt.xlabel(r"$\omega$")
 		else:
 			omega = array(self.omega)/reference_omega
-			plt.plot(omega, harmonic_amplitude)
+			plt.plot(omega, harmonic_amplitude, **kwargs)
 			plt.xlabel(r"$\omega/\omega_0$")
 		
 		if yscale == 'log':
@@ -206,6 +206,7 @@ class HarmonicBalanceMethod:
    
 			if predictor_vector is None:
 				print(f"\nTerminate: predictor failure after {solution_number} solutions")
+				print(f"Current omega: {predicted_solution.omega}")
 				print("Total solving time:", current_time()-t0, "seconds")
 				return solution_set
 			
@@ -223,6 +224,7 @@ class HarmonicBalanceMethod:
    
 			if not success:
 				print(f"\nTerminate: solver failure after {solution_number} solutions")
+				print(f"Current omega: {predicted_solution.omega}, step length: {step_length_adaptation.step_length}")
 				print("Total solving time:", current_time()-t0, "seconds")
 				return solution_set
 
@@ -232,7 +234,7 @@ class HarmonicBalanceMethod:
        			(solution.omega-angular_frequency_range[0])/(angular_frequency_range[-1]-angular_frequency_range[0]), \
 				solution_number/maximum_number_of_solutions)
 
-			print("progress {:.3f} %".format(100*progress), "\titerations", iterations, end="\r")
+			print("progress {:.3f} %".format(100*progress), f"\titerations {iterations}", "\tΔω {:.2e}".format(predictor_vector[-1,0]), end="\r")
 
 			# Update step length based on the corrector iterations
 			step_length_adaptation.update_step_length(iterations)
@@ -246,7 +248,9 @@ class HarmonicBalanceMethod:
 			# Update the reference predictor vector for the next continuation step
 			reference_direction = FourierOmegaPoint.to_RI_omega_static(solution - previous_solution)
 
-		print("\nTerminate: maximum number of solutions reached", "\nTotal solving time:", current_time()-t0, "seconds")
+		print("\nTerminate: maximum number of solutions reached")
+		print(f"Current omega: {predicted_solution.omega}")
+		print("Total solving time:", current_time()-t0, "seconds")
 		return solution_set
 
 	def zero_initialization(self, omega):

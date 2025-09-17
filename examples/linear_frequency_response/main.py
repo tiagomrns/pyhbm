@@ -11,10 +11,10 @@ from pyhbm import *
 
 #%% System number 1
 
-A = array([
+"""A = array([
     [-0.01, 4],
     [-4 ,-0.01]
-])
+])"""
 
 C = array([[1,0]]).T
 S = array([[0,1]]).T

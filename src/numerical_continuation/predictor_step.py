@@ -145,5 +145,38 @@ class ExponentialAdaptation(StepLengthAdaptation):
             self.step_length = initial_step_length
 
     def update_step_length(self, iterations):
-        new_step_length = self.step_length * (self.base**(self.goal_number_of_iterations - iterations))
+        delta_iterations = self.goal_number_of_iterations - iterations
+        if delta_iterations == 0: return
+        new_step_length = self.step_length * (self.base**delta_iterations)
+        self.step_length = min(max(new_step_length, self.min_step_length), self.max_step_length)
+        
+class BiExponentialAdaptation(StepLengthAdaptation):
+    def __init__(self, base_increase, maximum_step_length, minimum_step_length, goal_number_of_iterations, initial_step_length=None, base_decrease=None):
+
+        assert base_increase > 1.0, "bases must be greater than 1"
+        self.base_increase = base_increase
+        
+        if base_decrease is None:
+            self.base_decrease = base_increase
+        else:
+            assert base_decrease > 1.0, "bases must be greater than 1"
+            self.base_decrease = base_decrease
+
+        self.max_step_length = maximum_step_length
+        self.min_step_length = minimum_step_length
+        self.goal_number_of_iterations = goal_number_of_iterations
+        
+        if initial_step_length is None:
+            self.step_length = maximum_step_length
+        else:
+            self.step_length = initial_step_length
+
+    def update_step_length(self, iterations):
+        delta_iterations = self.goal_number_of_iterations - iterations
+        if delta_iterations == 0:
+            return
+        elif delta_iterations > 0:
+            new_step_length = self.step_length * (self.base_increase**(delta_iterations))
+        else:
+            new_step_length = self.step_length / (self.base_decrease**(-delta_iterations))
         self.step_length = min(max(new_step_length, self.min_step_length), self.max_step_length)

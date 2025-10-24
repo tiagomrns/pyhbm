@@ -55,22 +55,50 @@ class SolutionSet(object):
 		if show:
 			plt.show()
 
-	def save(self, path: str):
-		
-		harmonic_amplitude = abs(array([fourier.coefficients[..., 0] for fourier in self.fourier]))*2/Fourier.number_of_time_samples
-		
-		solution_set = {
-			"harmonic_amplitude": harmonic_amplitude,
-			"fourier_coefficients": array([fourier.coefficients.copy() for fourier in self.fourier]),
-   			"time_series": array([fourier.time_series.copy() for fourier in self.fourier]),
-      		"adimensional_time_samples": Fourier.adimensional_time_samples,
-			"omega": self.omega.copy(),
-			"iterations": self.iterations.copy(),
-			"step_length": self.step_length.copy()
-		}
+	def save(self, path: str, 
+          harmonic_amplitude = True, 
+          amplitude = True, 
+          angular_frequency = True,
+          fourier_coefficients = False, 
+          time_series = False, 
+          adimensional_time_samples = False,
+          iterations = False, 
+          step_length = False,
+          MATLAB_compatible = False):
   
-		with open(path, 'wb') as handle:
-			pickle.dump(solution_set, handle)
+		solution_set = {}
+
+		if harmonic_amplitude:
+			solution_set["harmonic_amplitude"] = \
+   				abs(array([fourier.coefficients[..., 0] for fourier in self.fourier]))*2/Fourier.number_of_time_samples
+       
+		if amplitude:
+			solution_set["amplitude"] = array([np.max(abs(fourier.time_series), axis=0) for fourier in self.fourier])
+   
+		if angular_frequency:
+			solution_set["angular_frequency"] = self.omega.copy()
+
+		if fourier_coefficients:
+			solution_set["fourier_coefficients"] = array([fourier.coefficients.copy() for fourier in self.fourier])
+   
+		if time_series:
+			solution_set["time_series"] = array([fourier.time_series.copy() for fourier in self.fourier])
+   
+		if adimensional_time_samples:
+			solution_set["adimensional_time_samples"] = Fourier.adimensional_time_samples
+   
+		if iterations:
+			solution_set["iterations"] = self.iterations.copy()
+   
+		if step_length:
+			solution_set["step_length"] = self.step_length.copy()
+  
+		if MATLAB_compatible:
+			from scipy.io import savemat
+			savemat(path, solution_set)
+		else:
+			with open(path, 'wb') as handle:
+				pickle.dump(solution_set, handle)
 
 class HarmonicBalanceMethod:
 	def __init__(self, first_order_ode: FirstOrderODE, 
@@ -149,9 +177,12 @@ class HarmonicBalanceMethod:
 		predictor_kwargs: dict = {},
   		initial_guess: FourierOmegaPoint = None, 
 		initial_reference_direction: FourierOmegaPoint = None, 
+		#save_predicted_solutions: bool = False,
 	) -> SolutionSet:
 
 		t0 = current_time()
+  
+		#predicted_solutions = []
 
 		# Sort the omega range for continuation
 		angular_frequency_range.sort()
@@ -211,6 +242,8 @@ class HarmonicBalanceMethod:
 				return solution_set
 			
 			predicted_solution: FourierOmegaPoint = previous_solution + predictor_vector
+			#if save_predicted_solutions:
+			#	predicted_solutions.append(predicted_solution)
    
 			# Set up corrector parameterization
 			self.parameterization = self.corrector_parameterization(
@@ -226,7 +259,7 @@ class HarmonicBalanceMethod:
 				print(f"\nTerminate: solver failure after {solution_number} solutions")
 				print(f"Current omega: {predicted_solution.omega}, step length: {step_length_adaptation.step_length}")
 				print("Total solving time:", current_time()-t0, "seconds")
-				return solution_set
+				return solution_set#, predicted_solutions
 
 			solution_set.append(solution, iterations, step_length_adaptation.step_length)
 
@@ -243,7 +276,7 @@ class HarmonicBalanceMethod:
 			if  not (angular_frequency_range[0] <= solution.omega <= angular_frequency_range[-1]):
 				print(f"\nTerminate: outside frequency range after {solution_number+1} solutions")
 				print("Total solving time:", current_time()-t0, "seconds")
-				return solution_set
+				return solution_set#, predicted_solutions
 
 			# Update the reference predictor vector for the next continuation step
 			reference_direction = FourierOmegaPoint.to_RI_omega_static(solution - previous_solution)
@@ -251,7 +284,7 @@ class HarmonicBalanceMethod:
 		print("\nTerminate: maximum number of solutions reached")
 		print(f"Current omega: {predicted_solution.omega}")
 		print("Total solving time:", current_time()-t0, "seconds")
-		return solution_set
+		return solution_set#, predicted_solutions
 
 	def zero_initialization(self, omega):
 		return FourierOmegaPoint.zero_amplitude(dimension=self.freq_domain_ode.ode.dimension, omega=omega)

@@ -26,7 +26,7 @@ initial_reference_direction = FourierOmegaPoint.new_from_first_harmonic(first_ha
 solution_set = duffing_solver.solve_and_continue(
     initial_guess = initial_guess, 
     initial_reference_direction = initial_reference_direction, 
-    maximum_number_of_solutions = 1000000, 
+    maximum_number_of_solutions = 3500, 
     angular_frequency_range = [0.0, 10], 
     solver_kwargs = {
         "maximum_iterations": 200, 

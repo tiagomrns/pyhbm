@@ -31,7 +31,7 @@ class DynamicalSystem:
 		raise NotImplementedError("This method should be overridden by subclasses.")
 
 #%%
-class DuffingForced(DynamicalSystem):
+class PendulumForced(DynamicalSystem):
 	"""
 	Class that implements the dynamics
 	
@@ -65,7 +65,7 @@ class DuffingForced(DynamicalSystem):
 		self.P = P # also serves as reference force level
 		self.linear_coefficient = array([[0.0, 1.0], [0.0, -c]])
 		self.dimension = self.linear_coefficient.shape[0] # 1 dimensional in second order and 2 dimensional in first order
-		self.polynomial_degree = 3
+		self.polynomial_degree = 11
 
 	def external_term(self, adimensional_time: np.ndarray) -> np.ndarray:
 		"""

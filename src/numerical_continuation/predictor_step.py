@@ -18,7 +18,7 @@ class TangentPredictorRobust(Predictor):
     def compute_predictor_vector(step_length: float, 
                                  jacobian: np.ndarray, 
                                  reference_direction: np.ndarray, 
-                                 remove_directions=np.array([[]])) -> np.ndarray:
+                                 remove_direction=np.array([[]])) -> np.ndarray:
         
         predictor_vector: np.ndarray = null_space(jacobian)
         dimension_of_kernel: int = predictor_vector.shape[1]
@@ -31,7 +31,7 @@ class TangentPredictorRobust(Predictor):
             
             predictor_vector = TangentPredictorRobust.filter_directions(predictor_vector, 
                                                                         dimension_of_kernel, 
-                                                                        remove_directions)
+                                                                        remove_direction)
         
         if predictor_vector is None:
             return None
@@ -46,15 +46,15 @@ class TangentPredictorRobust(Predictor):
     @staticmethod
     def filter_directions(predictor_vector: np.ndarray, 
                           dimension_of_kernel: int, 
-                          remove_directions: np.ndarray):
+                          remove_direction: np.ndarray):
         
-        remove_dimensions: int = remove_directions.shape[1]   
+        remove_dimension: int = remove_direction.shape[1]   
          
-        if dimension_of_kernel > remove_dimensions + 1:
-            print(f"TangentPredictorRobust: encoutered {dimension_of_kernel} possible predictor directions and could only remove {remove_dimensions}")
+        if dimension_of_kernel > remove_dimension + 1:
+            print(f"TangentPredictorRobust: encoutered {dimension_of_kernel} possible predictor directions and could only remove {remove_dimension}")
             return None
             
-        alignment_to_remove: np.ndarray = remove_directions.T @ predictor_vector
+        alignment_to_remove: np.ndarray = remove_direction.T @ predictor_vector
         coordinates_filter: np.ndarray = null_space(alignment_to_remove)
         
         if coordinates_filter.shape[1] == 1:

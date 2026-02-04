@@ -43,6 +43,7 @@ solution_set = pendulum_solver.solve_and_continue(
 
 plt.title("Frequency Response Function - Forced Pendulum")
 solution_set.plot_FRF(degrees_of_freedom=0)
+solution_set.save("examples/pendulum_forced_nonautonomous/results.out")
 
 # Find maximum amplitude point
 index = np.argmax([np.linalg.norm(fourier.coefficients[:,0,0], axis=0) for fourier in solution_set.fourier])

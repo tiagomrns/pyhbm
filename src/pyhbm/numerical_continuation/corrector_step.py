@@ -42,26 +42,33 @@ class NewtonRaphson(object):
 	
 		# the output is solution, iterations, success boolean, jacobian 
 
-
-# from scipy.optimize import newton
-
 class CorrectorParameterization(object):
-	def compute_parameterization(*kwargs):
+	def compute_parameterization(**kwargs):
 		pass
 
-	def compute_jacobian_parameterization(*kwargs):
+	def compute_jacobian_parameterization(**kwargs):
 		pass
 
 class OrthogonalParameterization(CorrectorParameterization):
-	def __init__(self, predictor_vector, predicted_solution, **kwargs):
+	def __init__(self, predictor_vector, predicted_solution):
 		self.predictor_vector = predictor_vector
 		self.predicted_solution = predicted_solution
 
-	def compute_parameterization(self, point, *kwargs):
+	def compute_parameterization(self, point, *args):
 		return vdot(self.predictor_vector, point - self.predicted_solution)
 
-	def compute_jacobian_parameterization(self, *kwargs):
+	def compute_jacobian_parameterization(self, *args):
 		return self.predictor_vector.T
 
+class ArcLengthParameterization(CorrectorParameterization):
+	def __init__(self, last_solution, step_size):
+		self.last_solution = last_solution
+		self.step_size = step_size
 
+	def compute_parameterization(self, point, *args):
+		delta = point - self.last_solution
+		return vdot(delta, delta) - self.step_size**2
 
+	def compute_jacobian_parameterization(self, point, *args):
+		delta = point - self.last_solution
+		return 2 * delta.T

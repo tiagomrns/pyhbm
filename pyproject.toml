@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyhbm"
+version = "2.0"
+description = "Python Harmonic Balance Method library for nonlinear dynamics"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Tiago"}
+]
+dependencies = [
+    "numpy>=1.20",
+    "scipy>=1.8",
+    "matplotlib>=3.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/pyhbm/pyhbm"
+Repository = "https://github.com/pyhbm/pyhbm"
+
+[tool.setuptools.packages.find]
+where = ["src"]

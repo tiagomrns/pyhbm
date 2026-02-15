@@ -1,8 +1,9 @@
 #%% non-autonomous time-normalized state-space function dx/dt = f_new(adimensional_time, x)
 import numpy as np
 from numpy import cos, sin, array, concatenate
+from pyhbm.dynamical_system import FirstOrderODE
 
-class ArchBeamSSM(object):
+class ArchBeamSSM(FirstOrderODE):
   
   is_real_valued = True
   

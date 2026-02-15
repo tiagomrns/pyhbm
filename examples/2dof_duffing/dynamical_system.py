@@ -1,9 +1,10 @@
 #%%
 import numpy as np
 from numpy import cos, sin, array, concatenate
+from pyhbm.dynamical_system import FirstOrderODE
 
 #%%
-class System2DoF(object):
+class System2DoF(FirstOrderODE):
 	"""
 	Class that implements the dynamics
 	

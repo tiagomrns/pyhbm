@@ -1,37 +1,10 @@
 #%%
 import numpy as np
 from numpy import cos, sin, array, concatenate
-
-class DynamicalSystem:
-	"""
-	Base class for dynamical systems.
-	Class that implements the dynamics
-	zdot = omega z' = f(z, tau) 
-	tau = omega * t
-	
-	"""
- 
-	is_real_valued = True
- 
-	def __init__(self):
-		self.linear_coefficient: int = 1
-		self.dimension: int = 1
-		self.polynomial_degree: int = 1
-		
-	def external_term(self, adimensional_time: np.ndarray) -> np.ndarray:
-		raise NotImplementedError("This method should be overridden by subclasses.")
-
-	def linear_term(self, state: np.ndarray) -> np.ndarray:
-		raise NotImplementedError("This method should be overridden by subclasses.")
-
-	def nonlinear_term(self, state: np.ndarray, adimensional_time: np.ndarray) -> np.ndarray:
-		raise NotImplementedError("This method should be overridden by subclasses.")
-
-	def all_terms(self, state: np.ndarray, adimensional_time: np.ndarray) -> np.ndarray:
-		raise NotImplementedError("This method should be overridden by subclasses.")
+from pyhbm.dynamical_system import FirstOrderODE
 
 #%%
-class DuffingForced(DynamicalSystem):
+class DuffingForced(FirstOrderODE):
 	"""
 	Class that implements the dynamics
 	
@@ -169,41 +142,3 @@ class DuffingForced(DynamicalSystem):
 			jacobian_P = array([[np.zeros_like(adimensional_time), cos(adimensional_time)]]).transpose()
 		
 		return jacobian_c, jacobian_k, jacobian_beta, jacobian_P
-
-
-if __name__ == '__main__':
-	#%% Test the Duffing class
-	
-	duffing = DuffingForced(c=0.1, k=1, beta=0.5, P=2)
-
-	state = array([[2.0], [0.0]])  # some state [x, v]
-	tau = np.pi  # adimensional time or the phase
-
-	# Print outputs for various terms
-	#print("linear coefficient ", duffing.linear_coefficient.shape, " = \n", duffing.linear_coefficient)
-	#print("linear term ", duffing.linear_term(state).shape, " = \n", duffing.linear_term(state))
-	print("nonlinear term ", duffing.nonlinear_term(state, tau).shape, " = \n", duffing.nonlinear_term(state, tau))
-	#print("jacobian nonlinear_term ", duffing.jacobian_nonlinear_term(state, tau).shape, " = \n", duffing.jacobian_nonlinear_term(state, tau))
-	#print("external term ", duffing.external_term(tau).shape, " = \n", duffing.external_term(tau))
-	#print("all terms = \n", duffing.all_terms(state, tau))
-	jacobians_wrt_parameters = concatenate(duffing.jacobian_parameters(state, tau, True, True, True, True), axis=-1)
-	print("sequence of jacobians w.r.t parameters", jacobians_wrt_parameters .shape, "\n", 
-			np.round(jacobians_wrt_parameters ,9))
-
-	#%% Test with vectorized state
-	number_of_time_samples = 16
-	state_vectorized = np.hstack((np.arange(number_of_time_samples).reshape(number_of_time_samples, 1, 1), 
-									1+np.zeros((number_of_time_samples,)).reshape(number_of_time_samples, 1, 1))) # some sequence of states
-
-	tau_vectorized = np.linspace(0, 2*np.pi, number_of_time_samples, endpoint=False)
-
-	print("sequence of states", state_vectorized.shape, "\n", state_vectorized)
-	print("sequence of nonlinear terms", duffing.nonlinear_term(state_vectorized, tau_vectorized).shape, "\n", 
-			np.round(duffing.nonlinear_term(state_vectorized, tau_vectorized),9))
-	#print("sequence of external terms", duffing.external_term(tau_vectorized).shape)
-	print("sequence of jacobians of the nonlinear terms", duffing.jacobian_nonlinear_term(state_vectorized, tau_vectorized).shape, "\n", 
-			np.round(duffing.jacobian_nonlinear_term(state_vectorized, tau_vectorized),9))
-
-	sequence_of_jacobians_wrt_parameters = concatenate(duffing.jacobian_parameters(state_vectorized, tau_vectorized, True, True, True, True), axis=-1)
-	print("sequence of jacobians w.r.t parameters", sequence_of_jacobians_wrt_parameters .shape, "\n", 
-			np.round(sequence_of_jacobians_wrt_parameters ,9))

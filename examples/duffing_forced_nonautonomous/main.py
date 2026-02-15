@@ -2,11 +2,6 @@
 
 from dynamical_system import *
 
-import sys
-import os
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
-
 from pyhbm import *
 
 duffing = DuffingForced(c=0.009, k=1.0, beta=1.0, P=1.0)  # Create an instance of Duffing

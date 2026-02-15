@@ -2,11 +2,6 @@
 
 from dynamical_system import *
 
-import sys
-import os
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
-
 from pyhbm import *
 
 clist = [0.1, 0.05, 0.02, 0.0152, 0.005]

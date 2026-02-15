@@ -2,11 +2,6 @@
 
 from dynamical_system import *
 
-import sys
-import os
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
-
 from pyhbm import *
 
 duffing = DuffingConservative(k=1.0, beta=0.1)

@@ -1,3 +1,20 @@
+Metadata-Version: 2.4
+Name: pyhbm
+Version: 2.0
+Summary: Python Harmonic Balance Method library for nonlinear dynamics
+Author: Tiago
+License: MIT
+Project-URL: Homepage, https://github.com/pyhbm/pyhbm
+Project-URL: Repository, https://github.com/pyhbm/pyhbm
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.20
+Requires-Dist: scipy>=1.8
+Requires-Dist: matplotlib>=3.5
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0; extra == "dev"
+
 # pyhbm
 
 Python Harmonic Balance Method library for nonlinear dynamics analysis.

@@ -1,9 +1,10 @@
 #%%
 import numpy as np
 from numpy import cos, sin, array, concatenate, zeros
+from pyhbm.dynamical_system import FirstOrderODE
 
 #%%
-class LinearOscillator(object):
+class LinearOscillator(FirstOrderODE):
 	"""
 	Class that implements the dynamics
 	

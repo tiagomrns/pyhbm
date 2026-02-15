@@ -71,38 +71,29 @@ class DuffingForced(FirstOrderODE):
         jacobian2 = np.concatenate((dfnldx, zeros), axis=-1)
         return np.concatenate((jacobian1, jacobian2), axis=-2)
 
-duffing = DuffingForced(c=0.009, k=1.0, beta=1.0, P=1.0)
+duffing = DuffingForced(c=0.1, k=1.0, beta=1.0, P=1.0)
 solver = HarmonicBalanceMethod(
     first_order_ode=duffing, 
     harmonics=[1, 3, 5, 7, 9],
 )
 
-initial_omega = 0.0
-first_harmonic = np.array([[1], [1j * initial_omega]])
-static_amplitude = duffing.P / duffing.k
-initial_guess = FourierOmegaPoint.new_from_first_harmonic(
-    first_harmonic * static_amplitude, 
-    omega=initial_omega
-)
-initial_reference_direction = FourierOmegaPoint.new_from_first_harmonic(
-    first_harmonic, 
-    omega=1
-)
+initial_guess = FourierOmegaPoint.zero_amplitude(dimension=duffing.dimension, omega=4.0)
+initial_reference_direction = FourierOmegaPoint.zero_amplitude(dimension=duffing.dimension, omega=-1.0)
 
 solution_set = solver.solve_and_continue(
     initial_guess=initial_guess,
     initial_reference_direction=initial_reference_direction,
     maximum_number_of_solutions=1000,
-    angular_frequency_range=[0.0, 10],
+    angular_frequency_range=[0.0, 4.0],
     solver_kwargs={"maximum_iterations": 200, "absolute_tolerance": 1e-6},
     step_length_adaptation_kwargs={
         "base": 2,
+        "goal_number_of_iterations": 3,
         "initial_step_length": 0.1,
+        "minimum_step_length": 1e-8,
         "maximum_step_length": 2.0,
     }
-)
-
-solution_set.plot_FRF(degrees_of_freedom=0, xscale='log', yscale='log')
+).plot_FRF(degrees_of_freedom=0)
 ```
 
 ## Examples

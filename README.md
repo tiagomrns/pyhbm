@@ -40,32 +40,43 @@ python -m pip install numpy scipy matplotlib
 import numpy as np
 from pyhbm import HarmonicBalanceMethod, FourierOmegaPoint, FirstOrderODE
 
-# Define your dynamical system
 class DuffingForced(FirstOrderODE):
     def __init__(self, c=0.01, k=1.0, beta=1.0, P=1.0):
         self.c = c
         self.k = k
         self.beta = beta
         self.P = P
-        
-    @property
-    def dimension(self):
-        return 2
+        self.linear_coefficient = np.array([[0.0, 1.0], [-k, -c]])
+        self.dimension = 2
+        self.polynomial_degree = 3
     
-    def compute_differential_equation(self, u, omega):
-        x, y = u[0, 0], u[1, 0]
-        dx = y
-        dy = -self.k * x - self.beta * x**3 - self.c * y + self.P * np.cos(omega * self.t)
-        return np.array([[dx], [dy]])
+    def external_term(self, adimensional_time):
+        zeros = np.zeros_like(adimensional_time)
+        return np.array([[zeros, self.P * np.cos(adimensional_time)]]).transpose()
+    
+    def linear_term(self, state):
+        return self.linear_coefficient @ state
+    
+    def nonlinear_term(self, state, adimensional_time):
+        u = state[..., 0:1, :]
+        zeros = np.zeros_like(u)
+        fnl = -self.beta * np.power(u, 3)
+        return np.concatenate((zeros, fnl), axis=-2)
+    
+    def jacobian_nonlinear_term(self, state, adimensional_time):
+        u = state[..., 0:1, :]
+        zeros = np.zeros_like(u)
+        dfnldx = -3 * self.beta * np.power(u, 2)
+        jacobian1 = np.concatenate((zeros, zeros), axis=-1)
+        jacobian2 = np.concatenate((dfnldx, zeros), axis=-1)
+        return np.concatenate((jacobian1, jacobian2), axis=-2)
 
-# Create solver
 duffing = DuffingForced(c=0.009, k=1.0, beta=1.0, P=1.0)
 solver = HarmonicBalanceMethod(
     first_order_ode=duffing, 
     harmonics=[1, 3, 5, 7, 9],
 )
 
-# Define initial guess
 initial_omega = 0.0
 first_harmonic = np.array([[1], [1j * initial_omega]])
 static_amplitude = duffing.P / duffing.k
@@ -78,7 +89,6 @@ initial_reference_direction = FourierOmegaPoint.new_from_first_harmonic(
     omega=1
 )
 
-# Solve and continue
 solution_set = solver.solve_and_continue(
     initial_guess=initial_guess,
     initial_reference_direction=initial_reference_direction,
@@ -92,7 +102,6 @@ solution_set = solver.solve_and_continue(
     }
 )
 
-# Plot results
 solution_set.plot_FRF(degrees_of_freedom=0, xscale='log', yscale='log')
 ```
 
@@ -121,35 +130,35 @@ python main.py
 
 | Class | Description |
 |-------|-------------|
-| `HarmonicBalanceMethod` | Main solver for HBM with continuation |
-| `SolutionSet` | Container for solution families |
-| `FourierOmegaPoint` | Fourier representation with frequency |
-| `Fourier` | Base Fourier coefficient class |
+| `HarmonicBalanceMethod` | Main solver class that combines Harmonic Balance Method with numerical continuation for tracking solution families across parameter ranges |
+| `SolutionSet` | Container that stores families of solutions obtained from continuation, with methods for plotting and analysis |
+| `FourierOmegaPoint` | Represents the solution state in frequency domain with Fourier coefficients and angular frequency |
+| `Fourier` | Base class for Fourier coefficient representation (used internally) |
 
 ### Frequency Domain
 
 | Class | Description |
 |-------|-------------|
-| `Fourier` | Base Fourier representation |
-| `Fourier_Real` | Real-valued Fourier coefficients |
-| `Fourier_Complex` | Complex-valued Fourier coefficients |
-| `FourierOmegaPoint` | Combined Fourier and frequency |
-| `FirstOrderODE` | Base class for dynamical systems |
-| `FrequencyDomainFirstOrderODE` | Frequency domain ODE wrapper |
+| `Fourier` | Base Fourier representation class for handling harmonic coefficients |
+| `Fourier_Real` | Real-valued Fourier coefficients for systems with symmetric solutions |
+| `Fourier_Complex` | Complex-valued Fourier coefficients for general periodic solutions |
+| `FourierOmegaPoint` | Combined Fourier representation with angular frequency parameter |
+| `FirstOrderODE` | Base class for defining dynamical systems; requires implementing `external_term()`, `linear_term()`, `nonlinear_term()`, and optionally `jacobian_nonlinear_term()` |
+| `FrequencyDomainFirstOrderODE` | Wrapper that converts time-domain ODE to frequency domain for HBM solving |
 
 ### Numerical Continuation
 
 | Class | Description |
 |-------|-------------|
-| `NewtonRaphson` | Newton-Raphson corrector solver |
-| `Predictor` | Base predictor class |
-| `TangentPredictorOne` | First-order tangent predictor |
-| `TangentPredictorTwo` | Second-order tangent predictor |
-| `TangentPredictorRobust` | Robust tangent predictor |
-| `StepLengthAdaptation` | Base step length adaptation |
-| `ExponentialAdaptation` | Exponential step size adaptation |
-| `BiExponentialAdaptation` | Bi-exponential adaptation |
-| `OrthogonalParameterization` | Orthogonal correction method |
+| `NewtonRaphson` | Newton-Raphson iterative solver used as corrector to find solutions on the continuation curve |
+| `Predictor` | Base predictor class defining the interface for continuation predictors |
+| `TangentPredictorOne` | First-order tangent predictor using linear approximation of the continuation curve |
+| `TangentPredictorTwo` | Second-order predictor using quadratic approximation for better accuracy |
+| `TangentPredictorRobust` | Robust tangent predictor with adaptive step sizing for difficult regions |
+| `StepLengthAdaptation` | Base class for adaptive step length control during continuation |
+| `ExponentialAdaptation` | Exponential step size adaptation adjusting step length based on iteration count |
+| `BiExponentialAdaptation` | Bi-exponential adaptation with separate growth and decay rates |
+| `OrthogonalParameterization` | Orthogonal correction method for improved stability in multi-parameter continuation |
 
 ## License
 

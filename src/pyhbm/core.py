@@ -1,6 +1,6 @@
 #%%
 import numpy as np
-from numpy import array, vstack, hstack
+from numpy import array, vstack, hstack, asarray, sqrt
 from numpy.linalg import norm
 from matplotlib import pyplot as plt
 import pickle
@@ -156,7 +156,7 @@ class HarmonicBalanceMethod:
 		Compute the extended residue, including parameterization.
 		"""
 		residue = self.freq_domain_ode.compute_residue_RI(x)
-		parameterization = self.parameterization.compute_parameterization(x.to_RI_omega())
+		parameterization = self.parameterization.compute_parameterization(asarray(x))
 		return vstack((residue, parameterization))
 
 	def extended_jacobian(self, x: FourierOmegaPoint):
@@ -165,7 +165,7 @@ class HarmonicBalanceMethod:
 		"""
 		jacobian = self.freq_domain_ode.compute_jacobian_of_residue_RI(x)
 		derivative_omega = self.freq_domain_ode.compute_derivative_wrt_omega_RI(x.fourier)
-		parameterization = self.parameterization.compute_jacobian_parameterization(x.to_RI_omega())
+		parameterization = self.parameterization.compute_jacobian_parameterization(asarray(x))
 		return vstack((hstack((jacobian, derivative_omega)), parameterization))
 
 	def solve_and_continue(
@@ -175,25 +175,28 @@ class HarmonicBalanceMethod:
 		solver_kwargs: dict, 
 		step_length_adaptation_kwargs: dict,
 		predictor_kwargs: dict = {},
-  		initial_guess: FourierOmegaPoint = None, 
+   		initial_guess: FourierOmegaPoint = None, 
 		initial_reference_direction: FourierOmegaPoint = None, 
-		#save_predicted_solutions: bool = False,
+		jacobian_update_frequency: int = 3,
+		jacobian_reuse_delta_threshold: float = 1e-3,
 	) -> SolutionSet:
 
 		t0 = current_time()
-  
+   
 		#predicted_solutions = []
 
 		# Sort the omega range for continuation
 		angular_frequency_range.sort()
 
 		# Set up the solver for extended system (residue + parameterization)
-		solver_kwargs["absolute_tolerance"] *= np.sqrt(2) / Fourier.number_of_time_samples
-  
+		solver_kwargs["absolute_tolerance"] *= sqrt(2) / Fourier.number_of_time_samples
+   
 		solver = self.solver(
 			func = self.extended_residue, 
 			jacobian = self.extended_jacobian, 
-			**solver_kwargs
+			**solver_kwargs,
+			jacobian_update_frequency = jacobian_update_frequency,
+			jacobian_reuse_delta_threshold = jacobian_reuse_delta_threshold,
 		)
 
 		# Initialize step length adaptation
@@ -203,11 +206,11 @@ class HarmonicBalanceMethod:
 		if initial_guess is None:
 			initial_guess = self.zero_initialization(omega=angular_frequency_range[0])
 		
-  		# Initialize predictor vector
+   		# Initialize predictor vector
 		if initial_reference_direction is not None:
-			reference_direction = FourierOmegaPoint.to_RI_omega_static(initial_reference_direction)
+			reference_direction = asarray(initial_reference_direction)
 		else: 
-			reference_direction = self.zero_initialization(omega=1.0).to_RI_omega()
+			reference_direction = asarray(self.zero_initialization(omega=1.0))
 
 		# Solve the first system for a fixed frequency
 		# FourierOmegaPoint, int, bool, np.ndarray
@@ -248,7 +251,7 @@ class HarmonicBalanceMethod:
 			# Set up corrector parameterization
 			self.parameterization = self.corrector_parameterization(
 				predictor_vector = predictor_vector, 
-				predicted_solution = FourierOmegaPoint.to_RI_omega_static(predicted_solution)
+				predicted_solution = asarray(predicted_solution)
 			)
 
 			# Solve the extended system (corrector step)
@@ -279,7 +282,7 @@ class HarmonicBalanceMethod:
 				return solution_set#, predicted_solutions
 
 			# Update the reference predictor vector for the next continuation step
-			reference_direction = FourierOmegaPoint.to_RI_omega_static(solution - previous_solution)
+			reference_direction = asarray(solution - previous_solution)
 
 		print("\nTerminate: maximum number of solutions reached")
 		print(f"Current omega: {predicted_solution.omega}")

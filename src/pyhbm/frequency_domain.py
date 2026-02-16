@@ -1,7 +1,9 @@
 import numpy as np
-from numpy import array, concatenate, unique, hstack, array_split, vstack, einsum, pi, linspace, zeros, eye, kron, diag, where, block, zeros_like
+from numpy import array, concatenate, unique, hstack, array_split, vstack, einsum, pi, linspace, zeros, eye, kron, diag, where, block, zeros_like, vdot, sqrt
 from scipy.linalg import block_diag
 from numpy.fft import rfft, irfft, fft, ifft
+from numpy.linalg import norm
+from numba.extending import overload
 
 from .dynamical_system import FirstOrderODE
 
@@ -19,7 +21,7 @@ class Fourier(object):
     
     @staticmethod
     def update_class_variables(harmonics: array, polynomial_degree: int):
-        indexes = sorted(np.unique(harmonics, return_index=True)[1])
+        indexes = sorted(unique(harmonics, return_index=True)[1])
         Fourier.harmonics = array(harmonics)[indexes] # list of relevant harmonics
         Fourier.polynomial_degree = polynomial_degree
 
@@ -70,7 +72,7 @@ class Fourier(object):
     def __rmul__(self, other: float):
         return Fourier(coefficients = self.coefficients * other)
     
-    def to_RI(self):
+    def __array__(self):
         R = vstack(self.coefficients.real)
         I = vstack(self.coefficients.imag)
         return vstack((R, I))
@@ -158,21 +160,13 @@ class FourierOmegaPoint(object):
         
         return FourierOmegaPoint(self.fourier - other.fourier, self.omega - other.omega)
     
-    def __mul__ (self, other: float):
+    def __mul__ (self, other: float| complex):
         return FourierOmegaPoint(self.fourier*other, self.omega*other)
     
-    def to_RI_omega(self):
+    def __array__(self):
         if self.RI is None:
-            self.RI = vstack((self.fourier.to_RI(), self.omega))
-            
+            self.RI = vstack((self.fourier.__array__(), self.omega))
         return self.RI
-    
-    @staticmethod
-    def to_RI_omega_static(x):
-        if isinstance(x, np.ndarray):
-            return x
-        
-        return x.to_RI_omega()
     
     def adimensional_time_derivative_RI(self) -> array:
         adimensional_time_derivative = self.fourier.get_adimensional_time_derivative()
@@ -260,6 +254,8 @@ class FrequencyDomainFirstOrderODE(object):
 
         self.external_term = self.compute_external_force()
         self.jacobian_linear_term = self.compute_jacobian_linear_term()
+        
+        self.jacobian_adimensional_time_derivative_term = kron(diag(Fourier.harmonics), eye(self.ode.dimension))
 
     # Residue in Real-Imaginary Format
     def compute_residue_RI(self, x: FourierOmegaPoint) -> array:
@@ -267,7 +263,7 @@ class FrequencyDomainFirstOrderODE(object):
         nonlinear_term = self.compute_nonlinear_term(state)
         linear_term_coefficients = self.ode.linear_coefficient @ state.coefficients - state.get_adimensional_time_derivative() * x.omega
         residue_coefficients = linear_term_coefficients + nonlinear_term.coefficients + self.external_term.coefficients
-        return Fourier(residue_coefficients).to_RI()
+        return Fourier(residue_coefficients).__array__()
     
     # Derivative of Residue with respect to omega in Real-Imaginary Format
     def compute_derivative_wrt_omega_RI(self, state: Fourier) -> array:
@@ -310,7 +306,6 @@ class FrequencyDomainFirstOrderODE_Real(FrequencyDomainFirstOrderODE):
 
         RR = state + state_conj
         II = state - state_conj
-        self.jacobian_derivative_term = kron(diag(Fourier.harmonics), eye(self.ode.dimension))
         # RI = 0
         # IR = -RI = 0
         return JacobianFourier_Real(RR=RR, RI=None, IR=None, II=II)
@@ -334,7 +329,7 @@ class FrequencyDomainFirstOrderODE_Real(FrequencyDomainFirstOrderODE):
     def compute_jacobian_of_residue_RI(self, x: FourierOmegaPoint) -> array:
 
         jacobian_nonlinear_term = self.compute_jacobian_nonlinear_term(x.fourier)
-        aux = self.jacobian_derivative_term * x.omega
+        aux = self.jacobian_adimensional_time_derivative_term * x.omega
 
         J_RR = jacobian_nonlinear_term.RR + self.jacobian_linear_term.RR
         J_RI = jacobian_nonlinear_term.RI + aux
@@ -353,7 +348,6 @@ class FrequencyDomainFirstOrderODE_Complex(FrequencyDomainFirstOrderODE):
     # Linear Jacobian for Complex-Valued Systems
     def compute_jacobian_linear_term(self) -> JacobianFourier_Complex:
         linear = kron(eye(Fourier.number_of_harmonics), self.ode.linear_coefficient)
-        self.jacobian_derivative_term = kron(diag(Fourier.harmonics), eye(self.ode.dimension))
         # IR = -RI = linear.imag
         # II = RR = linear.real
         return JacobianFourier_Complex(RR = linear.real, RI = -linear.imag, IR = None, II = None)
@@ -378,7 +372,7 @@ class FrequencyDomainFirstOrderODE_Complex(FrequencyDomainFirstOrderODE):
     def compute_jacobian_of_residue_RI(self, x: FourierOmegaPoint) -> array:
 
         jacobian_nonlinear_term = self.compute_jacobian_nonlinear_term(x.fourier)
-        aux = self.jacobian_linear_term.RI + self.jacobian_derivative_term * x.omega
+        aux = self.jacobian_linear_term.RI + self.jacobian_adimensional_time_derivative_term * x.omega
 
         J_RR = jacobian_nonlinear_term.RR + self.jacobian_linear_term.RR
         J_RI = jacobian_nonlinear_term.RI + aux

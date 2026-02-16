@@ -24,7 +24,7 @@ class SolutionSet(object):
 		self.step_length.append(step_length)
   
 	def __len__(self):
-		return len(self.solution)
+		return len(self.omega)
 
 	def plot_FRF(self, degrees_of_freedom:list, harmonic:int = None, reference_omega:float =None, yscale='linear', xscale='linear', show=True, **kwargs):
      

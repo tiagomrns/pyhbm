@@ -39,6 +39,11 @@ from .core import (
     HarmonicBalanceMethod,
 )
 
+from .validation import (
+    TimeDomainValidator,
+    ValidationResult,
+)
+
 __all__ = [
     "__version__",
     "FirstOrderODE",
@@ -64,4 +69,6 @@ __all__ = [
     "BiExponentialAdaptation",
     "SolutionSet",
     "HarmonicBalanceMethod",
+    "TimeDomainValidator",
+    "ValidationResult",
 ]

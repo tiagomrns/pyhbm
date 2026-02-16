@@ -1,9 +1,6 @@
 import numpy as np
 from numpy import array, concatenate, unique, hstack, array_split, vstack, einsum, pi, linspace, zeros, eye, kron, diag, where, block, zeros_like, vdot, sqrt
-from scipy.linalg import block_diag
 from numpy.fft import rfft, irfft, fft, ifft
-from numpy.linalg import norm
-from numba.extending import overload
 
 from .dynamical_system import FirstOrderODE
 
@@ -77,10 +74,17 @@ class Fourier(object):
         I = vstack(self.coefficients.imag)
         return vstack((R, I))
     
+    @staticmethod
     def new_from_RI(RI: array):
         complex_dimension = len(RI) // 2
         fourier_C = RI[:complex_dimension] + 1j*RI[complex_dimension:]
         return Fourier(array(array_split(fourier_C, Fourier.number_of_harmonics)))
+    
+    @staticmethod
+    def coefficients_to_RI(coeffs):
+        R = vstack(coeffs.real)
+        I = vstack(coeffs.imag)
+        return vstack((R, I))
     
     @staticmethod
     def zeros(dimension: int):
@@ -262,8 +266,8 @@ class FrequencyDomainFirstOrderODE(object):
         state = x.fourier
         nonlinear_term = self.compute_nonlinear_term(state)
         linear_term_coefficients = self.ode.linear_coefficient @ state.coefficients - state.get_adimensional_time_derivative() * x.omega
-        residue_coefficients = linear_term_coefficients + nonlinear_term.coefficients + self.external_term.coefficients
-        return Fourier(residue_coefficients).__array__()
+        residue_coefficients = linear_term_coefficients + nonlinear_term.coefficients + self.external_term.coefficients # complex array
+        return Fourier.coefficients_to_RI(residue_coefficients) # real array
     
     # Derivative of Residue with respect to omega in Real-Imaginary Format
     def compute_derivative_wrt_omega_RI(self, state: Fourier) -> array:

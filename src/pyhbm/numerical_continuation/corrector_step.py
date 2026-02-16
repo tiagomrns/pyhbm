@@ -61,6 +61,8 @@ class NewtonRaphson(object):
 		print(f"Newton-Raphson: maximum iterations reached ({self.maximum_iterations})")
 		return self.get_failed_result(return_jacobian)
 
+#%%
+
 class CorrectorParameterization(object):
 	def compute_parameterization(**kwargs):
 		pass

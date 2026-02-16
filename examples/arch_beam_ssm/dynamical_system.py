@@ -1,4 +1,8 @@
 #%% non-autonomous time-normalized state-space function dx/dt = f_new(adimensional_time, x)
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+
 import numpy as np
 from numpy import cos, sin, array, concatenate
 from pyhbm.dynamical_system import FirstOrderODE

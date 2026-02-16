@@ -1,12 +1,11 @@
 # %%
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from dynamical_system import *
-
-import sys
-import os
-
-
 from pyhbm import *
+import matplotlib.pyplot as plt
 
 pendulum = PendulumForced(c=0.07, k=1.0, P=0.1148)  # Create an instance of PendulumForced
 

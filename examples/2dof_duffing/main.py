@@ -1,8 +1,11 @@
 # %%
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from dynamical_system import *
-
 from pyhbm import *
+import matplotlib.pyplot as plt
 
 clist = [0.1, 0.05, 0.02, 0.0152, 0.005]
 

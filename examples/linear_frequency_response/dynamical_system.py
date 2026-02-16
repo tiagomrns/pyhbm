@@ -1,4 +1,8 @@
 #%%
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+
 import numpy as np
 from numpy import cos, sin, array, concatenate, zeros
 from pyhbm.dynamical_system import FirstOrderODE

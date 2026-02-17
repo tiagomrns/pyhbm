@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyhbm"
-version = "2.0"
+version = "2.1"
 description = "Python Harmonic Balance Method library for nonlinear dynamics"
 readme = "README.md"
 requires-python = ">=3.9"

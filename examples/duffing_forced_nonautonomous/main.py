@@ -16,7 +16,7 @@ duffing_solver = HarmonicBalanceMethod(
 
 # Define the initial guess after defining the harmonics of the HarmonicBalanceMethod
 initial_omega = 0.0
-first_harmonic = np.array([[1],[1j*initial_omega]])
+first_harmonic = np.array([[1],[1j*initial_omega]]) * 1
 static_amplitude = duffing.P/duffing.k
 initial_guess = FourierOmegaPoint.new_from_first_harmonic(first_harmonic * static_amplitude, omega=initial_omega)
 initial_reference_direction = FourierOmegaPoint.new_from_first_harmonic(first_harmonic, omega=1)
@@ -39,7 +39,9 @@ solution_set = duffing_solver.solve_and_continue(
     }
 )
 
-solution_set.plot_FRF(degrees_of_freedom=0, xscale='log', yscale='log')
+from pyhbm import plot_FRF
+
+plot_FRF(solution_set, degrees_of_freedom=0, xscale='log', yscale='log', stability=True, time_domain_ode=duffing)#, show=False)
 
 # %% Time-Domain Validation
 from pyhbm import TimeDomainValidator
@@ -64,5 +66,5 @@ print(f" Relative RMS error:\t{result.relative_rms_error:.6e}")
 print(f" Relative Max error:\t{result.relative_max_error:.6e}")
 print(f" Phase error:\t{result.phase_error:.6e}")
 
-validator.plot_comparison(result, degrees_of_freedom=0)#, show=False)
+validator.plot_comparison(result, degrees_of_freedom=0, show=False)
 # %%

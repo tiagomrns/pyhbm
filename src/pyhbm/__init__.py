@@ -44,6 +44,16 @@ from .validation import (
     ValidationResult,
 )
 
+from .io import (
+    plot_FRF,
+    save_solution_set
+)
+
+from .stability import (
+    FloquetAnalyzer,
+    StabilityReport,
+)
+
 __all__ = [
     "__version__",
     "FirstOrderODE",
@@ -71,4 +81,6 @@ __all__ = [
     "HarmonicBalanceMethod",
     "TimeDomainValidator",
     "ValidationResult",
+    "FloquetAnalyzer",
+    "StabilityReport",
 ]

@@ -9,11 +9,14 @@ class FirstOrderODE:
     Class that implements the dynamics:
         zdot = omega * z' = f(z, tau)
         tau = omega * t
+        
+        -> The class writes the function f(z, tau) = A @ z + fnl(z, tau) + fext(tau)
+        The adimensional-time ODE becomes:  z' = f(z, tau) / omega
     
     Subclasses must implement:
-        - external_term(adimensional_time)
-        - linear_term(state)
-        - nonlinear_term(state, adimensional_time)
+        - external_term(adimensional_time), # fext
+        - linear_coefficient(state), # A
+        - nonlinear_term(state, adimensional_time), # fnl
     """
     
     is_real_valued: bool = True
@@ -74,3 +77,13 @@ class FirstOrderODE:
             + self.nonlinear_term(state, adimensional_time)
             + self.external_term(adimensional_time)
         )
+
+    def compute_jacobian(self, state: ArrayLike, adimensional_time: ArrayLike) -> np.ndarray:
+        """
+        Compute the Jacobian of the full dynamical system with respect to state.
+        
+        :param state: State vector
+        :param adimensional_time: Adimensional time
+        :return: Jacobian array of shape (dimension, dimension)
+        """
+        return self.linear_coefficient + self.jacobian_nonlinear_term(state, adimensional_time)

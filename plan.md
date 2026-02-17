@@ -8,7 +8,7 @@ This document outlines the implementation plan for four high-priority features t
 
 ---
 
-## Feature 1: Time-Domain Validation
+## Feature 1: Time-Domain Validation [DONE]
 
 ### Goal
 Validate HBM solutions against numerical time integration to verify accuracy of periodic solutions.
@@ -170,7 +170,7 @@ class ValidationResult:
 
 ---
 
-## Feature 2: Stability Analysis
+## Feature 2: Stability Analysis [DONE]
 
 ### Goal
 Compute Floquet exponents to determine stability of periodic solutions obtained via HBM.
@@ -338,6 +338,7 @@ Automatically detect saddle-node and Hopf bifurcations during continuation (on-d
 ### Saddle-Node (Fold) Bifurcation
 - Occurs when two solutions collide and annihilate
 - Detected by: dω/dn changes sign along continuation curve
+- The ω component of the predictor vector switches sign
 - Jacobian becomes singular (determinant → 0)
 
 ### Hopf (Neimark-Sacker) Bifurcation

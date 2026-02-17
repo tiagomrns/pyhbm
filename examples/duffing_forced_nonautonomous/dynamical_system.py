@@ -29,7 +29,7 @@ class DuffingForced(FirstOrderODE):
 	- zdot = omega z' = f(z, tau)
 	
 	"""
-	def __init__(self, c=0.1, k=1.0, beta=0.1, P=1.0):
+	def __init__(self, c=0.009, k=1.0, beta=0.1, P=1.0):
 		"""
 		Initializes the Duffing oscillator parameters.
 

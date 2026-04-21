@@ -193,7 +193,7 @@ class JacobianFourier(object):
     harmonics_state_conj = Fourier.harmonics[:, None] + Fourier.harmonics
     harmonics = unique(concatenate((unique(harmonics_state), unique(harmonics_state_conj))))
     number_of_harmonics = len(harmonics)
-    harmonic_truncation_order = max(harmonics)
+    harmonic_truncation_order = max(abs(harmonics))
     
     @staticmethod
     def update_class_variables():
@@ -203,6 +203,12 @@ class JacobianFourier(object):
         JacobianFourier.harmonics = unique(concatenate((unique(JacobianFourier.harmonics_state), unique(JacobianFourier.harmonics_state_conj))))
         JacobianFourier.number_of_harmonics = len(JacobianFourier.harmonics)
         JacobianFourier.harmonic_truncation_order = max(JacobianFourier.harmonics)
+        print("JacobianFourier.polynomial_degree =\n", JacobianFourier.polynomial_degree)
+        print("JacobianFourier.harmonics_state =\n", JacobianFourier.harmonics_state)
+        print("JacobianFourier.harmonics_state_conj =\n", JacobianFourier.harmonics_state_conj)
+        print("JacobianFourier.harmonics =", JacobianFourier.harmonics)
+        print("JacobianFourier.number_of_harmonics =", JacobianFourier.number_of_harmonics)
+        print("JacobianFourier.harmonic_truncation_order =", JacobianFourier.harmonic_truncation_order)
 
     def __init__(self, RR: array, RI: array, IR: array, II: array) -> None:
         self.RR = RR # Derivative of real part wrt real part
@@ -385,7 +391,4 @@ class FrequencyDomainFirstOrderODE_Complex(FrequencyDomainFirstOrderODE):
         
         return block([[J_RR, J_RI], [J_IR, J_II]])
 
-# Test
-
-# %%
-
+# %% Test

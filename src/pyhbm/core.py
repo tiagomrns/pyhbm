@@ -39,6 +39,15 @@ class SolutionSet(object):
 			reports.append(report)
 		return reports
 
+	def detect_bifurcations(
+		self,
+		stability_reports: list[StabilityReport] = None,
+		freq_domain_ode = None
+	) -> list:
+		from .stability.bifurcation_detection import BifurcationDetector
+		detector = BifurcationDetector()
+		return detector.detect_all(self, stability_reports, freq_domain_ode)
+
 class HarmonicBalanceMethod:
 	def __init__(self, first_order_ode: FirstOrderODE, 
 				harmonics: np.ndarray, 
@@ -149,6 +158,7 @@ class HarmonicBalanceMethod:
         		step_length = step_length_adaptation.step_length,
 				jacobian = jacobian[:self.freq_domain_ode.real_dimension],
 				reference_direction = reference_direction,
+    			**predictor_kwargs,
           	)
     
 			if predictor_vector is None:

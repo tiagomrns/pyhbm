@@ -42,8 +42,7 @@ class FloquetAnalyzer:
         The monodromy matrix M = Phi(T) is computed via time-ordered exponential.
         """
         
-        if omega == 0:
-            return np.eye(1) * 0
+        assert omega != 0, "FloquetAnalyzer: the monodromy matrix is defined for fixed points"
         
         n_states = time_series.shape[1]
         n_steps = len(adimensional_time_samples)
@@ -76,14 +75,19 @@ class FloquetAnalyzer:
         A periodic orbit is asymptotically stable if all Floquet multipliers
         (except the trivial one ~1) have magnitude less than 1.
         """
-        M = self.compute_monodromy_matrix(time_series, adimensional_time_samples, omega)
         
-        multipliers = linalg.eigvals(M)
+        if omega == 0.0:
+            fixed_point = time_series[0]
+            J = self.time_domain_ode.compute_jacobian(fixed_point, 0.0)
+            multipliers = np.exp(linalg.eigvals(J))
+            
+        else:
+            monodromy_matrix = self.compute_monodromy_matrix(time_series, adimensional_time_samples, omega)
+            multipliers = linalg.eigvals(monodromy_matrix)
         
         trivial_idx = np.argmin(np.abs(multipliers - 1))
         nontrivial_multipliers = np.delete(multipliers, trivial_idx)
-        
-        is_stable = bool(np.all(np.abs(nontrivial_multipliers) < 1 - tolerance))
+        is_stable = bool(np.max(np.abs(nontrivial_multipliers)) < 1 - tolerance)
 
         return StabilityReport(
             multipliers=multipliers,

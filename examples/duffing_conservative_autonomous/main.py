@@ -22,7 +22,7 @@ initial_amplitude = 1e-6
 initial_guess = FourierOmegaPoint.new_from_first_harmonic(first_harmonic * initial_amplitude, omega=initial_omega)
 initial_reference_direction = FourierOmegaPoint.new_from_first_harmonic(first_harmonic, omega=0.0)
 
-duffing_solver.solve_and_continue(
+solution_set = duffing_solver.solve_and_continue(
     initial_guess = initial_guess, 
     initial_reference_direction = initial_reference_direction, 
     maximum_number_of_solutions = 1000, 
@@ -34,11 +34,14 @@ duffing_solver.solve_and_continue(
     step_length_adaptation_kwargs = {
         "base": 2, 
         "initial_step_length": 0.01, 
-        "maximum_step_length": 2.0, 
+        "maximum_step_length": 1e-1, 
         "minimum_step_length": 5e-6, 
         "goal_number_of_iterations": 3
     },
     predictor_kwargs = {
-        "rcond": 1e-6 # In the tangent predictor, singular values s smaller than rcond * max(s) are considered zero.
+        "rcond": 1e-6, # In the tangent predictor, singular values s smaller than rcond * max(s) are considered zero.
     }
-).plot_FRF(degrees_of_freedom=0)
+)
+
+from pyhbm import plot_FRF
+plot_FRF(solution_set, degrees_of_freedom=0)

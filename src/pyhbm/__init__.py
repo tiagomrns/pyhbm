@@ -52,6 +52,8 @@ from .io import (
 from .stability import (
     FloquetAnalyzer,
     StabilityReport,
+    BifurcationDetector,
+    SpecialPoint,
 )
 
 __all__ = [
@@ -83,4 +85,6 @@ __all__ = [
     "ValidationResult",
     "FloquetAnalyzer",
     "StabilityReport",
+    "BifurcationDetector",
+    "SpecialPoint",
 ]

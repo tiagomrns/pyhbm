@@ -40,15 +40,43 @@ solution_set = duffing_solver.solve_and_continue(
 )
 
 from pyhbm import plot_FRF
+from pyhbm.stability import BifurcationDetector, FloquetAnalyzer, SpecialPoint
 
-plot_FRF(solution_set, degrees_of_freedom=0, xscale='log', yscale='log', stability=True, time_domain_ode=duffing)#, show=False)
+# Analyze stability
+print("Computing stability reports...")
+analyzer = FloquetAnalyzer(duffing)
+stability_reports = []
+for i, fourier in enumerate(solution_set.fourier):
+    if fourier.time_series is None:
+        fourier.compute_time_series()
+    report = analyzer.analyze(fourier.time_series, Fourier.adimensional_time_samples, solution_set.omega[i])
+    stability_reports.append(report)
+print(f"Computed {len(stability_reports)} stability reports")
+
+# Detect bifurcations
+print("Detecting bifurcations...")
+detector = BifurcationDetector()
+#bifurcations = detector.detect_all(solution_set, stability_reports)
+#print(f"Detected {len(bifurcations)} bifurcation points:")
+#for bif in bifurcations:
+#    print(bif.__str__(verbose=True), '\n')
+
+# Plot FRF with stability and bifurcations
+plot_FRF(
+    solution_set, 
+    degrees_of_freedom=0,
+    time_domain_ode=duffing,
+    stability_reports=stability_reports, #bifurcations=bifurcations,
+    xscale='log', 
+    yscale='log'
+)
 
 # %% Time-Domain Validation
 from pyhbm import TimeDomainValidator
 
 validator = TimeDomainValidator(duffing, integrator='RK45')
 
-index_to_validate = 1
+index_to_validate = 1046
 fourier = solution_set.fourier[index_to_validate]
 omega = solution_set.omega[index_to_validate]
 
@@ -66,5 +94,5 @@ print(f" Relative RMS error:\t{result.relative_rms_error:.6e}")
 print(f" Relative Max error:\t{result.relative_max_error:.6e}")
 print(f" Phase error:\t{result.phase_error:.6e}")
 
-validator.plot_comparison(result, degrees_of_freedom=0, show=False)
+validator.plot_comparison(result, degrees_of_freedom=0)#, show=False)
 # %%

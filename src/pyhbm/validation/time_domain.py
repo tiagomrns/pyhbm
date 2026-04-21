@@ -295,11 +295,11 @@ class TimeDomainValidator:
             **kwargs
         )
         axes[1].set_xlabel('Time')
-        axes[1].set_ylabel('Relative Error')
+        axes[1].set_ylabel('Error')
         axes[1].legend()
         axes[1].set_title(
-            f'Relative Error (RMS: {validation_result.relative_rms_error:.2e}, '
-            f'Relative Max: {validation_result.relative_max_error:.2e})'
+            f'Relative RMS Error: {validation_result.relative_rms_error:.2e},     '
+            f'Relative Max Error: {validation_result.relative_max_error:.2e}'
         )
         axes[1].grid(True)
 

@@ -15,8 +15,7 @@ class TangentPredictorRobust(Predictor):
     """
     autonomous = True
     @staticmethod
-    def compute_predictor_vector(step_length: float, 
-                                 jacobian: np.ndarray, 
+    def compute_predictor_vector(jacobian: np.ndarray, 
                                  reference_direction: np.ndarray, 
                                  remove_direction=np.array([[]])) -> np.ndarray:
         
@@ -74,8 +73,7 @@ class TangentPredictorOne(Predictor):
     """
     autonomous = False
     @staticmethod
-    def compute_predictor_vector(step_length: float, 
-                                 jacobian: np.ndarray, 
+    def compute_predictor_vector(jacobian: np.ndarray, 
                                  reference_direction: np.ndarray,
                                  rcond: float = None) -> np.ndarray:
         
@@ -85,7 +83,7 @@ class TangentPredictorOne(Predictor):
         # align predictor_vector with reference
         predictor_vector *= sign(vdot(reference_direction, predictor_vector))
         # scale to match step length
-        return predictor_vector * step_length
+        return predictor_vector
         
 class TangentPredictorTwo(Predictor):
     """
@@ -96,8 +94,7 @@ class TangentPredictorTwo(Predictor):
     """
     autonomous = True
     @staticmethod
-    def compute_predictor_vector(step_length: float, 
-                                 jacobian: np.ndarray, 
+    def compute_predictor_vector(jacobian: np.ndarray, 
                                  reference_direction: np.ndarray, 
                                  remove_direction: np.ndarray,
                                  rcond: float = None) -> np.ndarray:
@@ -121,7 +118,7 @@ class TangentPredictorTwo(Predictor):
         # align predictor_vector with reference
         predictor_vector *= sign(vdot(reference_direction, predictor_vector))
         # scale to match step length
-        return predictor_vector * step_length
+        return predictor_vector
 
 #%%    
 

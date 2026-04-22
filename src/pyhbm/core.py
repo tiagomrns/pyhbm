@@ -166,8 +166,9 @@ class HarmonicBalanceMethod:
 				print(f"Current omega: {previous_solution.omega}")
 				print("Total solving time:", time()-t0, "seconds")
 				return solution_set
-   
-			for predictor_iterations in range(maximum_predictor_corrector_loops_per_solution):
+
+			count_min_step_length = 0
+			for __ in range(maximum_predictor_corrector_loops_per_solution):
 				
 				predicted_solution: FourierOmegaPoint = previous_solution + predictor_vector * step_length_adaptation.step_length
     
@@ -177,9 +178,14 @@ class HarmonicBalanceMethod:
 				)
 
 				solution, iterations, success, jacobian = solver.solve(predicted_solution, return_jacobian=True)
-				step_length_adaptation.update_step_length(iterations)
+				count_min_step_length += step_length_adaptation.update_step_length(iterations)
     
 				if success: break
+				if count_min_step_length > 1:
+					print(f"\nTerminate: solver failure with step size locked at minimum, after {solution_number} solutions")
+					print(f"Current omega: {predicted_solution.omega}, step length: {step_length_adaptation.step_length}")
+					print("Total solving time:", time()-t0, "seconds")
+					return solution_set
     
 			else:
 				print(f"\nTerminate: solver failure after {solution_number} solutions")

@@ -144,8 +144,18 @@ class ExponentialAdaptation(StepLengthAdaptation):
     def update_step_length(self, iterations):
         delta_iterations = self.goal_number_of_iterations - iterations
         if delta_iterations == 0: return
-        new_step_length = self.step_length * (self.base**delta_iterations)
-        self.step_length = min(max(new_step_length, self.min_step_length), self.max_step_length)
+        self.step_length = self.step_length * (self.base**delta_iterations)
+        
+        # self.step_length = min(max(new_step_length, self.min_step_length), self.max_step_length)
+        
+        if self.step_length > self.max_step_length:
+            self.step_length = self.max_step_length
+        
+        if self.step_length < self.min_step_length:
+            self.step_length = self.min_step_length
+            return 1
+        
+        return 0
         
 class BiExponentialAdaptation(StepLengthAdaptation):
     def __init__(self, base_increase, maximum_step_length, minimum_step_length, goal_number_of_iterations, initial_step_length=None, base_decrease=None):
@@ -173,7 +183,17 @@ class BiExponentialAdaptation(StepLengthAdaptation):
         if delta_iterations == 0:
             return
         elif delta_iterations > 0:
-            new_step_length = self.step_length * (self.base_increase**(delta_iterations))
+            self.step_length = self.step_length * (self.base_increase**(delta_iterations))
         else:
-            new_step_length = self.step_length / (self.base_decrease**(-delta_iterations))
-        self.step_length = min(max(new_step_length, self.min_step_length), self.max_step_length)
+            self.step_length = self.step_length / (self.base_decrease**(-delta_iterations))
+            
+        # self.step_length = min(max(new_step_length, self.min_step_length), self.max_step_length)
+        
+        if self.step_length > self.max_step_length:
+            self.step_length = self.max_step_length
+        
+        if self.step_length < self.min_step_length:
+            self.step_length = self.min_step_length
+            return 1
+        
+        return 0

@@ -203,12 +203,6 @@ class JacobianFourier(object):
         JacobianFourier.harmonics = unique(concatenate((unique(JacobianFourier.harmonics_state), unique(JacobianFourier.harmonics_state_conj))))
         JacobianFourier.number_of_harmonics = len(JacobianFourier.harmonics)
         JacobianFourier.harmonic_truncation_order = max(JacobianFourier.harmonics)
-        print("JacobianFourier.polynomial_degree =\n", JacobianFourier.polynomial_degree)
-        print("JacobianFourier.harmonics_state =\n", JacobianFourier.harmonics_state)
-        print("JacobianFourier.harmonics_state_conj =\n", JacobianFourier.harmonics_state_conj)
-        print("JacobianFourier.harmonics =", JacobianFourier.harmonics)
-        print("JacobianFourier.number_of_harmonics =", JacobianFourier.number_of_harmonics)
-        print("JacobianFourier.harmonic_truncation_order =", JacobianFourier.harmonic_truncation_order)
 
     def __init__(self, RR: array, RI: array, IR: array, II: array) -> None:
         self.RR = RR # Derivative of real part wrt real part

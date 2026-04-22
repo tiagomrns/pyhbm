@@ -123,7 +123,7 @@ class TangentPredictorTwo(Predictor):
 #%%    
 
 class StepLengthAdaptation(object):
-    def update_step_length():
+    def update_step_length() -> int:
         pass
 
 class ExponentialAdaptation(StepLengthAdaptation):
@@ -141,7 +141,7 @@ class ExponentialAdaptation(StepLengthAdaptation):
         else:
             self.step_length = initial_step_length
 
-    def update_step_length(self, iterations):
+    def update_step_length(self, iterations) -> int:
         delta_iterations = self.goal_number_of_iterations - iterations
         if delta_iterations == 0: return 0
         self.step_length = self.step_length * (self.base**delta_iterations)
@@ -178,7 +178,7 @@ class BiExponentialAdaptation(StepLengthAdaptation):
         else:
             self.step_length = initial_step_length
 
-    def update_step_length(self, iterations):
+    def update_step_length(self, iterations)  -> int:
         delta_iterations = self.goal_number_of_iterations - iterations
         if delta_iterations == 0:
             return 0

@@ -112,7 +112,7 @@ class HarmonicBalanceMethod:
 		initial_reference_direction: FourierOmegaPoint = None, 
 		jacobian_update_frequency: int = 3,
 		jacobian_reuse_delta_threshold: float = 1e-3,
-		maximum_predictor_corrector_loops_per_solution = 10,
+		maximum_predictor_corrector_loops_per_solution: int = 10,
 		verbose: bool = True
 	) -> SolutionSet:
 
@@ -167,7 +167,8 @@ class HarmonicBalanceMethod:
 				print("Total solving time:", time()-t0, "seconds")
 				return solution_set
 
-			count_min_step_length = 0
+			count_min_step_length = 1 if step_length_adaptation.step_length == step_length_adaptation.min_step_length else 0
+   
 			for __ in range(maximum_predictor_corrector_loops_per_solution):
 				
 				predicted_solution: FourierOmegaPoint = previous_solution + predictor_vector * step_length_adaptation.step_length
@@ -178,7 +179,7 @@ class HarmonicBalanceMethod:
 				)
 
 				solution, iterations, success, jacobian = solver.solve(predicted_solution, return_jacobian=True)
-				count_min_step_length += step_length_adaptation.update_step_length(iterations)
+				count_min_step_length += step_length_adaptation.update_step_length(iterations) # do this check before
     
 				if success: break
 				if count_min_step_length > 1:

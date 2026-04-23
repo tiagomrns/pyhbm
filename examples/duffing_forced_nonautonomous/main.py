@@ -33,7 +33,7 @@ solution_set = duffing_solver.solve_and_continue(
     step_length_adaptation_kwargs = {
         "base": 2, 
         "initial_step_length": 0.1, 
-        "maximum_step_length": 2.0, 
+        "maximum_step_length": 10.0, 
         "minimum_step_length": 5e-6, 
         "goal_number_of_iterations": 3
     }

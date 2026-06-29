@@ -39,8 +39,8 @@ class TangentPredictorRobust(Predictor):
         predictor_vector /= norm(predictor_vector)
         # align predictor_vector with reference
         predictor_vector *= sign(vdot(reference_direction, predictor_vector))
-        # scale to match step length
-        return predictor_vector * step_length
+        
+        return predictor_vector
     
     @staticmethod
     def filter_directions(predictor_vector: np.ndarray, 
@@ -82,7 +82,7 @@ class TangentPredictorOne(Predictor):
         predictor_vector /= norm(predictor_vector)
         # align predictor_vector with reference
         predictor_vector *= sign(vdot(reference_direction, predictor_vector))
-        # scale to match step length
+        
         return predictor_vector
         
 class TangentPredictorTwo(Predictor):
@@ -105,19 +105,22 @@ class TangentPredictorTwo(Predictor):
         
         predictor_vector: np.ndarray = null_space(jacobian, rcond=rcond)
         dimension_of_kernel: int = predictor_vector.shape[1]
-        if not dimension_of_kernel == 2: 
+        
+        if dimension_of_kernel == 2: 
+            # remove one direction
+            alignment_to_remove: np.ndarray = remove_direction.T @ predictor_vector
+            predictor_vector = predictor_vector @ np.array([-alignment_to_remove[:,1], alignment_to_remove[:,0]])
+            # align predictor_vector with reference
+            predictor_vector *= sign(vdot(reference_direction, predictor_vector))
+        else:
             print(f"TangentPredictorTwo: for rcond={rcond}, dimension_of_kernel={dimension_of_kernel}")
-            return None
-
-        # remove one direction
-        alignment_to_remove: np.ndarray = remove_direction.T @ predictor_vector
-        predictor_vector = predictor_vector @ np.array([-alignment_to_remove[:,1], alignment_to_remove[:,0]])
+            if dimension_of_kernel >= 3:
+                predictor_vector = reference_direction
+            else:
+                return None
             
         # normalize predictor_vector
         predictor_vector /= norm(predictor_vector)
-        # align predictor_vector with reference
-        predictor_vector *= sign(vdot(reference_direction, predictor_vector))
-        # scale to match step length
         return predictor_vector
 
 #%%    

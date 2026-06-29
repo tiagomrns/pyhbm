@@ -144,7 +144,7 @@ class HarmonicBalanceMethod:
 		solution_set = SolutionSet(solution, iterations, step_length_adaptation.step_length)
 
 		if not success:
-			print("\nTerminate: solver failure at initial solution (empty solution set)")
+			print("Terminate: solver failure at initial solution (empty solution set)")
 			return solution_set
 
 		for solution_number in range(1, maximum_number_of_solutions):
@@ -154,7 +154,7 @@ class HarmonicBalanceMethod:
 			if self.predictor.autonomous:
 				phase_shift_direction = previous_solution.adimensional_time_derivative_RI()
 				predictor_kwargs["remove_direction"] = phase_shift_direction / norm(phase_shift_direction)
-    
+          
 			predictor_vector: np.ndarray = self.predictor.compute_predictor_vector(
 				jacobian = jacobian[:self.freq_domain_ode.real_dimension],
 				reference_direction = reference_direction,
@@ -162,7 +162,7 @@ class HarmonicBalanceMethod:
           	)
    
 			if predictor_vector is None:
-				print(f"\nTerminate: predictor failure after {solution_number} solutions")
+				print(f"Terminate: predictor failure after {solution_number} solutions")
 				print(f"Current omega: {previous_solution.omega}")
 				print("Total solving time:", time()-t0, "seconds")
 				return solution_set
@@ -172,7 +172,7 @@ class HarmonicBalanceMethod:
 			for __ in range(maximum_predictor_corrector_loops_per_solution):
 				
 				predicted_solution: FourierOmegaPoint = previous_solution + predictor_vector * step_length_adaptation.step_length
-    
+
 				self.parameterization = self.corrector_parameterization(
 					predictor_vector = predictor_vector,
 					predicted_solution = asarray(predicted_solution),
@@ -183,13 +183,13 @@ class HarmonicBalanceMethod:
     
 				if success: break
 				if count_min_step_length > 1:
-					print(f"\nTerminate: solver failure with step size locked at minimum, after {solution_number} solutions")
+					print(f"Terminate: solver failure with step size locked at minimum, after {solution_number} solutions")
 					print(f"Current omega: {predicted_solution.omega}, step length: {step_length_adaptation.step_length}")
 					print("Total solving time:", time()-t0, "seconds")
 					return solution_set
     
 			else:
-				print(f"\nTerminate: solver failure after {solution_number} solutions")
+				print(f"Terminate: solver failure after {solution_number} solutions")
 				print(f"Current omega: {predicted_solution.omega}, step length: {step_length_adaptation.step_length}")
 				print("Total solving time:", time()-t0, "seconds")
 				return solution_set
@@ -204,13 +204,14 @@ class HarmonicBalanceMethod:
 				print("progress {:.3f} %".format(100*progress), f"\titerations {iterations}", "\tΔω {:.2e}".format(predictor_vector[-1,0]), end="\r")
 
 			if  not (angular_frequency_range[0] <= solution.omega <= angular_frequency_range[-1]):
-				print(f"\nTerminate: outside frequency range after {solution_number+1} solutions")
+				print(f"Terminate: outside frequency range after {solution_number+1} solutions")
+				print(f"Last omega: {solution.omega}")
 				print("Total solving time:", time()-t0, "seconds")
 				return solution_set
 
 			reference_direction = asarray(solution - previous_solution)
 
-		print("\nTerminate: maximum number of solutions reached")
+		print(f"Terminate: maximum number of solutions reached: {maximum_number_of_solutions} solutions")
 		print(f"Current omega: {predicted_solution.omega}")
 		print("Total solving time:", time()-t0, "seconds")
 		return solution_set
